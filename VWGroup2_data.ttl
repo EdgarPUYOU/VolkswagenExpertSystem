@@ -5,6 +5,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 # Vehicle A-box assertions for the Volkswagen ontology.
 # Seat model and manufacturer assignments below are illustrative.
+# Component assignments and illustrative planned production are grouped with each model.
 # Sales profiles and model-fit tags are in VW_Sales_data.ttl.
 
 # Powertrain Categories
@@ -143,7 +144,9 @@ vw:Golf a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:Hatchback ;
     vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:hasComponent vw:EA211_15TSI, vw:StandardPassengerSeat, vw:Transmission_Standard, vw:BrakeSystem_Standard, vw:Infotainment_Standard, vw:TyreSet_Standard ;
     vw:carsProducedPerYear 250000 ;
+    vw:plannedAnnualProduction 300000 ;
     vw:customerAppreciationRating "4.3"^^xsd:decimal .
 
 vw:ID4 a vw:Model ; 
@@ -155,7 +158,9 @@ vw:ID4 a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:SUV ;
     vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:hasComponent vw:ID4ElectricDrive, vw:StandardPassengerSeat, vw:BatteryPack_MEB, vw:Transmission_Standard, vw:BrakeSystem_Standard, vw:Infotainment_Standard, vw:TyreSet_Standard ;
     vw:carsProducedPerYear 100000 ;
+    vw:plannedAnnualProduction 140000 ;
     vw:customerAppreciationRating "4.1"^^xsd:decimal .
 
 vw:Passat a vw:Model ; 
@@ -167,7 +172,9 @@ vw:Passat a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:Sedan ;
     vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:hasComponent vw:EA211_15TSI, vw:StandardPassengerSeat, vw:Transmission_Standard, vw:BrakeSystem_Standard, vw:Infotainment_Standard, vw:TyreSet_Standard ;
     vw:carsProducedPerYear 100000 ;
+    vw:plannedAnnualProduction 120000 ;
     vw:customerAppreciationRating "4.2"^^xsd:decimal .
 
 vw:Octavia a vw:Model ; 
@@ -179,7 +186,9 @@ vw:Octavia a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:Sedan ;
     vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:hasComponent vw:EA211_15TSI, vw:StandardPassengerSeat, vw:Transmission_Standard, vw:BrakeSystem_Standard, vw:Infotainment_Standard, vw:TyreSet_Standard ;
     vw:carsProducedPerYear 150000 ;
+    vw:plannedAnnualProduction 180000 ;
     vw:customerAppreciationRating "4.4"^^xsd:decimal .
 
 vw:Enyaq a vw:Model ; 
@@ -191,7 +200,9 @@ vw:Enyaq a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:SUV ;
     vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:hasComponent vw:ID4ElectricDrive, vw:StandardPassengerSeat, vw:BatteryPack_MEB, vw:Transmission_Standard, vw:BrakeSystem_Standard, vw:Infotainment_Standard, vw:TyreSet_Standard ;
     vw:carsProducedPerYear 90000 ;
+    vw:plannedAnnualProduction 125000 ;
     vw:customerAppreciationRating "4.5"^^xsd:decimal .
 
 vw:911 a vw:Model ; 
@@ -203,7 +214,9 @@ vw:911 a vw:Model ;
     vw:seats "4"^^xsd:integer ;
     vw:hasVehicleType vw:Coupe, vw:RaceCar ;
     vw:hasSeatModel vw:PerformanceSeat ;
+    vw:hasComponent vw:Porsche911Engine, vw:PerformanceSeat, vw:Transmission_Performance, vw:BrakeSystem_Performance, vw:Infotainment_Premium, vw:TyreSet_Performance ;
     vw:carsProducedPerYear 50000 ;
+    vw:plannedAnnualProduction 55000 ;
     vw:customerAppreciationRating "4.8"^^xsd:decimal .
 
 vw:Taycan a vw:Model ; 
@@ -215,7 +228,9 @@ vw:Taycan a vw:Model ;
     vw:seats "4"^^xsd:integer ;
     vw:hasVehicleType vw:Sedan ;
     vw:hasSeatModel vw:PerformanceSeat ;
+    vw:hasComponent vw:ETronElectricDrive, vw:PerformanceSeat, vw:BatteryPack_J1, vw:Transmission_Performance, vw:BrakeSystem_Performance, vw:Infotainment_Premium, vw:TyreSet_Performance ;
     vw:carsProducedPerYear 30000 ;
+    vw:plannedAnnualProduction 45000 ;
     vw:customerAppreciationRating "4.3"^^xsd:decimal .
 
 vw:Cayenne a vw:Model ; 
@@ -227,7 +242,9 @@ vw:Cayenne a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:SUV ;
     vw:hasSeatModel vw:PerformanceSeat ;
+    vw:hasComponent vw:Porsche911Engine, vw:PerformanceSeat, vw:Transmission_Performance, vw:BrakeSystem_Performance, vw:Infotainment_Premium, vw:TyreSet_Performance ;
     vw:carsProducedPerYear 90000 ;
+    vw:plannedAnnualProduction 105000 ;
     vw:customerAppreciationRating "4.6"^^xsd:decimal .
 
 vw:A4 a vw:Model ; 
@@ -239,7 +256,9 @@ vw:A4 a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:Sedan ;
     vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:hasComponent vw:A4TSI, vw:StandardPassengerSeat, vw:Transmission_Standard, vw:BrakeSystem_Standard, vw:Infotainment_Standard, vw:TyreSet_Standard ;
     vw:carsProducedPerYear 70000 ;
+    vw:plannedAnnualProduction 80000 ;
     vw:customerAppreciationRating "4.2"^^xsd:decimal .
 
 vw:Q5 a vw:Model ; 
@@ -251,7 +270,9 @@ vw:Q5 a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:SUV ;
     vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:hasComponent vw:A4TSI, vw:StandardPassengerSeat, vw:Transmission_Standard, vw:BrakeSystem_Standard, vw:Infotainment_Standard, vw:TyreSet_Standard ;
     vw:carsProducedPerYear 120000 ;
+    vw:plannedAnnualProduction 150000 ;
     vw:customerAppreciationRating "4.4"^^xsd:decimal .
 
 vw:e-tron a vw:Model ; 
@@ -263,7 +284,9 @@ vw:e-tron a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:SUV ;
     vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:hasComponent vw:ETronElectricDrive, vw:StandardPassengerSeat, vw:BatteryPack_Etron, vw:Transmission_Standard, vw:BrakeSystem_Standard, vw:Infotainment_Standard, vw:TyreSet_Standard ;
     vw:carsProducedPerYear 40000 ;
+    vw:plannedAnnualProduction 55000 ;
     vw:customerAppreciationRating "4.1"^^xsd:decimal .
 
 vw:Urus a vw:Model ; 
@@ -275,7 +298,9 @@ vw:Urus a vw:Model ;
     vw:seats "5"^^xsd:integer ;
     vw:hasVehicleType vw:SUV ;
     vw:hasSeatModel vw:PerformanceSeat ;
+    vw:hasComponent vw:Porsche911Engine, vw:PerformanceSeat, vw:Transmission_Performance, vw:BrakeSystem_Performance, vw:Infotainment_Premium, vw:TyreSet_Performance ;
     vw:carsProducedPerYear 6000 ;
+    vw:plannedAnnualProduction 8000 ;
     vw:customerAppreciationRating "4.7"^^xsd:decimal .
 
 vw:Huracan a vw:Model ; 
@@ -287,7 +312,9 @@ vw:Huracan a vw:Model ;
     vw:seats "2"^^xsd:integer ;
     vw:hasVehicleType vw:Coupe ;
     vw:hasSeatModel vw:PerformanceSeat ;
+    vw:hasComponent vw:Porsche911Engine, vw:PerformanceSeat, vw:Transmission_Performance, vw:BrakeSystem_Performance, vw:Infotainment_Premium, vw:TyreSet_Performance ;
     vw:carsProducedPerYear 3000 ;
+    vw:plannedAnnualProduction 4000 ;
     vw:customerAppreciationRating "4.8"^^xsd:decimal .
 
 vw:RSeries a vw:Model ; 
@@ -299,7 +326,9 @@ vw:RSeries a vw:Model ;
     vw:seats "2"^^xsd:integer ;
     vw:hasVehicleType vw:Truck ;
     vw:hasSeatModel vw:CommercialSeat ;
+    vw:hasComponent vw:ScaniaRSeriesEngine, vw:CommercialSeat, vw:Transmission_HeavyDuty, vw:BrakeSystem_HeavyDuty, vw:Infotainment_Commercial, vw:TyreSet_HeavyDuty ;
     vw:carsProducedPerYear 80000 ;
+    vw:plannedAnnualProduction 100000 ;
     vw:customerAppreciationRating "4.3"^^xsd:decimal .
 
 vw:TGX a vw:Model ; 
@@ -311,7 +340,9 @@ vw:TGX a vw:Model ;
     vw:seats "2"^^xsd:integer ;
     vw:hasVehicleType vw:Truck ;
     vw:hasSeatModel vw:CommercialSeat ;
+    vw:hasComponent vw:ScaniaRSeriesEngine, vw:CommercialSeat, vw:Transmission_HeavyDuty, vw:BrakeSystem_HeavyDuty, vw:Infotainment_Commercial, vw:TyreSet_HeavyDuty ;
     vw:carsProducedPerYear 60000 ;
+    vw:plannedAnnualProduction 75000 ;
     vw:customerAppreciationRating "4.2"^^xsd:decimal .
 
 # Production sites 

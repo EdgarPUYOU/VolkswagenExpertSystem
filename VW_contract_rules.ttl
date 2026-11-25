@@ -1,0 +1,99 @@
+@prefix vw:     <http://example.org/volkswagen/> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix swrl:   <http://www.w3.org/2003/11/swrl#> .
+@prefix swrlb:  <http://www.w3.org/2003/11/swrlb#> .
+
+# A contract is flagged if projected demand exceeds its commitment or
+# reaches a volume tier with a lower unit price.
+
+vw:ContractRule1 a swrl:Imp ;
+    rdfs:label "Review contract when projected volume exceeds commitment" ;
+    swrl:body (
+        [ a swrl:ClassAtom ;
+          swrl:classPredicate vw:SupplyContract ;
+          swrl:argument1 vw:var_contract ]
+        [ a swrl:IndividualPropertyAtom ;
+          swrl:propertyPredicate vw:contractCoversComponent ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:var_component ]
+        [ a swrl:DatavaluedPropertyAtom ;
+          swrl:propertyPredicate vw:projectedAnnualComponentVolume ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:var_projected ]
+        [ a swrl:DatavaluedPropertyAtom ;
+          swrl:propertyPredicate vw:currentContractedAnnualVolume ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:var_committed ]
+        [ a swrl:BuiltinAtom ;
+          swrl:builtin swrlb:greaterThan ;
+          swrl:arguments ( vw:var_projected vw:var_committed ) ]
+    ) ;
+    swrl:head (
+        [ a swrl:ClassAtom ;
+          swrl:classPredicate vw:ContractReviewCandidate ;
+          swrl:argument1 vw:var_contract ]
+        [ a swrl:ClassAtom ;
+          swrl:classPredicate vw:RenegotiationCandidateComponent ;
+          swrl:argument1 vw:var_component ]
+        [ a swrl:IndividualPropertyAtom ;
+          swrl:propertyPredicate vw:contractReviewReason ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:VolumeExceedsCommitment ]
+    ) .
+
+vw:ContractRule2 a swrl:Imp ;
+    rdfs:label "Review contract when a lower-price volume tier is reached" ;
+    swrl:body (
+        [ a swrl:ClassAtom ;
+          swrl:classPredicate vw:SupplyContract ;
+          swrl:argument1 vw:var_contract ]
+        [ a swrl:IndividualPropertyAtom ;
+          swrl:propertyPredicate vw:contractCoversComponent ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:var_component ]
+        [ a swrl:DatavaluedPropertyAtom ;
+          swrl:propertyPredicate vw:projectedAnnualComponentVolume ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:var_projected ]
+        [ a swrl:DatavaluedPropertyAtom ;
+          swrl:propertyPredicate vw:discountTierAnnualVolume ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:var_tier ]
+        [ a swrl:DatavaluedPropertyAtom ;
+          swrl:propertyPredicate vw:currentUnitPriceEUR ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:var_current_price ]
+        [ a swrl:DatavaluedPropertyAtom ;
+          swrl:propertyPredicate vw:discountUnitPriceEUR ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:var_discount_price ]
+        [ a swrl:BuiltinAtom ;
+          swrl:builtin swrlb:greaterThanOrEqual ;
+          swrl:arguments ( vw:var_projected vw:var_tier ) ]
+        [ a swrl:BuiltinAtom ;
+          swrl:builtin swrlb:lessThan ;
+          swrl:arguments ( vw:var_discount_price vw:var_current_price ) ]
+    ) ;
+    swrl:head (
+        [ a swrl:ClassAtom ;
+          swrl:classPredicate vw:ContractReviewCandidate ;
+          swrl:argument1 vw:var_contract ]
+        [ a swrl:ClassAtom ;
+          swrl:classPredicate vw:RenegotiationCandidateComponent ;
+          swrl:argument1 vw:var_component ]
+        [ a swrl:IndividualPropertyAtom ;
+          swrl:propertyPredicate vw:contractReviewReason ;
+          swrl:argument1 vw:var_contract ;
+          swrl:argument2 vw:VolumeDiscountAvailable ]
+    ) .
+
+vw:var_contract a swrl:Variable .
+vw:var_component a swrl:Variable .
+vw:var_projected a swrl:Variable .
+vw:var_committed a swrl:Variable .
+vw:var_tier a swrl:Variable .
+vw:var_current_price a swrl:Variable .
+vw:var_discount_price a swrl:Variable .

@@ -1,0 +1,132 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Load with VWGroup2.ttl, VWGroup2_data.ttl, VW_Contracts_data.ttl, and
+# VW_contract_rules.ttl to evaluate the illustrative contract scenario.
+
+vw:ContractsOntology a owl:Ontology ;
+    rdfs:label "Volkswagen Component and Supply Contracts Ontology" .
+
+vw:Component a owl:Class ;
+    rdfs:subClassOf vw:Product .
+vw:ComponentCategory a owl:Class .
+vw:Supplier a owl:Class ;
+    rdfs:subClassOf vw:Organization .
+vw:SupplyContract a owl:Class .
+vw:ContractReviewCandidate a owl:Class ;
+    rdfs:subClassOf vw:SupplyContract .
+vw:RenegotiationCandidateComponent a owl:Class ;
+    rdfs:subClassOf vw:Component .
+vw:RenegotiationReason a owl:Class .
+
+vw:BatteryPack a owl:Class ;
+    rdfs:subClassOf vw:Component .
+vw:Transmission a owl:Class ;
+    rdfs:subClassOf vw:Component .
+vw:BrakeSystem a owl:Class ;
+    rdfs:subClassOf vw:Component .
+vw:InfotainmentSystem a owl:Class ;
+    rdfs:subClassOf vw:Component .
+vw:TyreSet a owl:Class ;
+    rdfs:subClassOf vw:Component .
+
+vw:EngineModel rdfs:subClassOf vw:Component .
+vw:SeatModel rdfs:subClassOf vw:Component .
+vw:SeatManufacturer rdfs:subClassOf vw:Supplier .
+
+vw:hasComponent a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:Component .
+
+vw:hasEngineModel rdfs:subPropertyOf vw:hasComponent .
+vw:hasSeatModel rdfs:subPropertyOf vw:hasComponent .
+
+vw:componentCategory a owl:ObjectProperty ;
+    rdfs:domain vw:Component ;
+    rdfs:range vw:ComponentCategory .
+
+vw:componentSupplier a owl:ObjectProperty ;
+    rdfs:domain vw:Component ;
+    rdfs:range vw:Supplier .
+
+vw:hasSeatManufacturer rdfs:subPropertyOf vw:componentSupplier .
+
+vw:componentProducedAt a owl:ObjectProperty ;
+    rdfs:domain vw:Component ;
+    rdfs:range vw:ProductionSite .
+
+vw:seatProducedAt rdfs:subPropertyOf vw:componentProducedAt .
+
+vw:contractCoversComponent a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:Component ;
+    owl:inverseOf vw:componentHasSupplyContract .
+
+vw:componentHasSupplyContract a owl:ObjectProperty ;
+    rdfs:domain vw:Component ;
+    rdfs:range vw:SupplyContract .
+
+vw:contractSupplier a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:Supplier .
+
+vw:contractIncludesModel a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:Model .
+
+vw:contractReviewReason a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:RenegotiationReason .
+
+vw:plannedAnnualProduction a owl:DatatypeProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Illustrative target production for the current planning scenario." .
+
+vw:componentUnit a owl:DatatypeProperty ;
+    rdfs:domain vw:Component ;
+    rdfs:range xsd:string .
+
+vw:supplierCountry a owl:DatatypeProperty ;
+    rdfs:domain vw:Supplier ;
+    rdfs:range xsd:string .
+
+vw:supplierLeadTimeDays a owl:DatatypeProperty ;
+    rdfs:domain vw:Supplier ;
+    rdfs:range xsd:integer .
+
+vw:currentContractedAnnualVolume a owl:DatatypeProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range xsd:integer .
+
+vw:projectedAnnualComponentVolume a owl:DatatypeProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Projected aggregate annual order for this component in the planning scenario." .
+
+vw:discountTierAnnualVolume a owl:DatatypeProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range xsd:integer .
+
+vw:currentUnitPriceEUR a owl:DatatypeProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range xsd:decimal .
+
+vw:discountUnitPriceEUR a owl:DatatypeProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range xsd:decimal .
+
+vw:contractStartDate a owl:DatatypeProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range xsd:date .
+
+vw:contractEndDate a owl:DatatypeProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range xsd:date .
+
+vw:contractCurrency a owl:DatatypeProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range xsd:string .

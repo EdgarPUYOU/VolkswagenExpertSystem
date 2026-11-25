@@ -1,0 +1,637 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+vw:VolumeExceedsCommitment a vw:RenegotiationReason ;
+    rdfs:label "Projected volume exceeds contracted commitment" .
+
+vw:VolumeDiscountAvailable a vw:RenegotiationReason ;
+    rdfs:label "Lower-price volume discount tier is available" .
+
+# All suppliers, component costs, contract terms, and production targets below are illustrative.
+# Projected annual component volumes are pooled sums over covered models; recalculate if targets or mappings change.
+
+# Component categories
+vw:EngineAssembly a vw:ComponentCategory ;
+    rdfs:label "Engine assembly" .
+
+vw:ElectricDriveUnit a vw:ComponentCategory ;
+    rdfs:label "Electric drive unit" .
+
+vw:BatteryPackCategory a vw:ComponentCategory ;
+    rdfs:label "Battery pack" .
+
+vw:SeatAssembly a vw:ComponentCategory ;
+    rdfs:label "Seat set" .
+
+vw:TransmissionCategory a vw:ComponentCategory ;
+    rdfs:label "Transmission" .
+
+vw:BrakingSystemCategory a vw:ComponentCategory ;
+    rdfs:label "Braking system" .
+
+vw:InfotainmentCategory a vw:ComponentCategory ;
+    rdfs:label "Infotainment" .
+
+vw:TyreSetCategory a vw:ComponentCategory ;
+    rdfs:label "Tyre set" .
+
+# Fictional suppliers and illustrative lead times
+
+vw:Supplier_PowertrainWorks a vw:Supplier ;
+    rdfs:label "Illustrative Powertrain Works" ;
+    vw:supplierCountry "Germany" ;
+    vw:supplierLeadTimeDays 60 .
+
+vw:Supplier_ElectricDriveWorks a vw:Supplier ;
+    rdfs:label "Illustrative Electric Drive Works" ;
+    vw:supplierCountry "Germany" ;
+    vw:supplierLeadTimeDays 90 .
+
+vw:Supplier_PerformanceParts a vw:Supplier ;
+    rdfs:label "Illustrative Performance Components" ;
+    vw:supplierCountry "Germany" ;
+    vw:supplierLeadTimeDays 75 .
+
+vw:Supplier_HeavyVehicleSystems a vw:Supplier ;
+    rdfs:label "Illustrative Heavy Vehicle Systems" ;
+    vw:supplierCountry "Sweden" ;
+    vw:supplierLeadTimeDays 70 .
+
+vw:Supplier_BatterySystems a vw:Supplier ;
+    rdfs:label "Illustrative Battery Systems" ;
+    vw:supplierCountry "Germany" ;
+    vw:supplierLeadTimeDays 120 .
+
+vw:Supplier_TransmissionSystems a vw:Supplier ;
+    rdfs:label "Illustrative Transmission Systems" ;
+    vw:supplierCountry "Czech Republic" ;
+    vw:supplierLeadTimeDays 55 .
+
+vw:Supplier_BrakeSystems a vw:Supplier ;
+    rdfs:label "Illustrative Brake Systems" ;
+    vw:supplierCountry "Germany" ;
+    vw:supplierLeadTimeDays 45 .
+
+vw:Supplier_InfotainmentSystems a vw:Supplier ;
+    rdfs:label "Illustrative Infotainment Systems" ;
+    vw:supplierCountry "Germany" ;
+    vw:supplierLeadTimeDays 75 .
+
+vw:Supplier_TireSystems a vw:Supplier ;
+    rdfs:label "Illustrative Tire Systems" ;
+    vw:supplierCountry "Czech Republic" ;
+    vw:supplierLeadTimeDays 35 .
+
+vw:PassengerSeatManufacturer a vw:SeatManufacturer, vw:Supplier ;
+    vw:supplierCountry "Germany" ;
+    vw:supplierLeadTimeDays 50 .
+
+vw:PerformanceSeatManufacturer a vw:SeatManufacturer, vw:Supplier ;
+    vw:supplierCountry "Germany" ;
+    vw:supplierLeadTimeDays 60 .
+
+vw:CommercialSeatManufacturer a vw:SeatManufacturer, vw:Supplier ;
+    vw:supplierCountry "Sweden" ;
+    vw:supplierLeadTimeDays 55 .
+
+# Fictional supplier production sites
+
+vw:PowertrainWorksPlant a vw:ProductionSite ;
+    rdfs:label "Powertrain assembly site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:ElectricDrivePlant a vw:ProductionSite ;
+    rdfs:label "Electric drive production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:PerformancePartsPlant a vw:ProductionSite ;
+    rdfs:label "Performance components site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:HeavyVehiclePlant a vw:ProductionSite ;
+    rdfs:label "Heavy vehicle components site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:BatteryPlant a vw:ProductionSite ;
+    rdfs:label "Battery production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:TransmissionPlant a vw:ProductionSite ;
+    rdfs:label "Transmission production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:BrakePlant a vw:ProductionSite ;
+    rdfs:label "Braking system production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:InfotainmentPlant a vw:ProductionSite ;
+    rdfs:label "Infotainment production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:TirePlant a vw:ProductionSite ;
+    rdfs:label "Tyre production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+# Existing engines and seats used as contract components
+
+vw:EA211_15TSI a vw:Component ;
+    vw:componentCategory vw:EngineAssembly ;
+    vw:componentSupplier vw:Supplier_PowertrainWorks ;
+    vw:componentUnit "engine unit" ;
+    vw:componentProducedAt vw:PowertrainWorksPlant .
+
+vw:ID4ElectricDrive a vw:Component ;
+    vw:componentCategory vw:ElectricDriveUnit ;
+    vw:componentSupplier vw:Supplier_ElectricDriveWorks ;
+    vw:componentUnit "drive unit" ;
+    vw:componentProducedAt vw:ElectricDrivePlant .
+
+vw:Porsche911Engine a vw:Component ;
+    vw:componentCategory vw:EngineAssembly ;
+    vw:componentSupplier vw:Supplier_PerformanceParts ;
+    vw:componentUnit "engine unit" ;
+    vw:componentProducedAt vw:PerformancePartsPlant .
+
+vw:A4TSI a vw:Component ;
+    vw:componentCategory vw:EngineAssembly ;
+    vw:componentSupplier vw:Supplier_PowertrainWorks ;
+    vw:componentUnit "engine unit" ;
+    vw:componentProducedAt vw:PowertrainWorksPlant .
+
+vw:ETronElectricDrive a vw:Component ;
+    vw:componentCategory vw:ElectricDriveUnit ;
+    vw:componentSupplier vw:Supplier_ElectricDriveWorks ;
+    vw:componentUnit "drive unit" ;
+    vw:componentProducedAt vw:ElectricDrivePlant .
+
+vw:ScaniaRSeriesEngine a vw:Component ;
+    vw:componentCategory vw:EngineAssembly ;
+    vw:componentSupplier vw:Supplier_HeavyVehicleSystems ;
+    vw:componentUnit "engine unit" ;
+    vw:componentProducedAt vw:HeavyVehiclePlant .
+
+vw:StandardPassengerSeat a vw:Component ;
+    vw:componentCategory vw:SeatAssembly ;
+    vw:componentSupplier vw:PassengerSeatManufacturer ;
+    vw:componentUnit "seat set per vehicle" ;
+    vw:componentProducedAt vw:PassengerSeatPlant .
+
+vw:PerformanceSeat a vw:Component ;
+    vw:componentCategory vw:SeatAssembly ;
+    vw:componentSupplier vw:PerformanceSeatManufacturer ;
+    vw:componentUnit "seat set per vehicle" ;
+    vw:componentProducedAt vw:PerformanceSeatPlant .
+
+vw:CommercialSeat a vw:Component ;
+    vw:componentCategory vw:SeatAssembly ;
+    vw:componentSupplier vw:CommercialSeatManufacturer ;
+    vw:componentUnit "seat set per vehicle" ;
+    vw:componentProducedAt vw:CommercialSeatPlant .
+
+# Additional components used across model ranges
+
+vw:BatteryPack_MEB a vw:BatteryPack, vw:Component ;
+    rdfs:label "MEB battery pack (illustrative)" ;
+    vw:componentCategory vw:BatteryPackCategory ;
+    vw:componentSupplier vw:Supplier_BatterySystems ;
+    vw:componentUnit "battery pack" ;
+    vw:componentProducedAt vw:BatteryPlant .
+
+vw:BatteryPack_J1 a vw:BatteryPack, vw:Component ;
+    rdfs:label "J1 battery pack (illustrative)" ;
+    vw:componentCategory vw:BatteryPackCategory ;
+    vw:componentSupplier vw:Supplier_BatterySystems ;
+    vw:componentUnit "battery pack" ;
+    vw:componentProducedAt vw:BatteryPlant .
+
+vw:BatteryPack_Etron a vw:BatteryPack, vw:Component ;
+    rdfs:label "e-tron battery pack (illustrative)" ;
+    vw:componentCategory vw:BatteryPackCategory ;
+    vw:componentSupplier vw:Supplier_BatterySystems ;
+    vw:componentUnit "battery pack" ;
+    vw:componentProducedAt vw:BatteryPlant .
+
+vw:Transmission_Standard a vw:Transmission, vw:Component ;
+    rdfs:label "Standard transmission unit (illustrative)" ;
+    vw:componentCategory vw:TransmissionCategory ;
+    vw:componentSupplier vw:Supplier_TransmissionSystems ;
+    vw:componentUnit "transmission unit" ;
+    vw:componentProducedAt vw:TransmissionPlant .
+
+vw:Transmission_Performance a vw:Transmission, vw:Component ;
+    rdfs:label "Performance transmission unit (illustrative)" ;
+    vw:componentCategory vw:TransmissionCategory ;
+    vw:componentSupplier vw:Supplier_TransmissionSystems ;
+    vw:componentUnit "transmission unit" ;
+    vw:componentProducedAt vw:TransmissionPlant .
+
+vw:Transmission_HeavyDuty a vw:Transmission, vw:Component ;
+    rdfs:label "Heavy-duty transmission unit (illustrative)" ;
+    vw:componentCategory vw:TransmissionCategory ;
+    vw:componentSupplier vw:Supplier_HeavyVehicleSystems ;
+    vw:componentUnit "transmission unit" ;
+    vw:componentProducedAt vw:HeavyVehiclePlant .
+
+vw:BrakeSystem_Standard a vw:BrakeSystem, vw:Component ;
+    rdfs:label "Standard braking system (illustrative)" ;
+    vw:componentCategory vw:BrakingSystemCategory ;
+    vw:componentSupplier vw:Supplier_BrakeSystems ;
+    vw:componentUnit "braking system" ;
+    vw:componentProducedAt vw:BrakePlant .
+
+vw:BrakeSystem_Performance a vw:BrakeSystem, vw:Component ;
+    rdfs:label "Performance braking system (illustrative)" ;
+    vw:componentCategory vw:BrakingSystemCategory ;
+    vw:componentSupplier vw:Supplier_BrakeSystems ;
+    vw:componentUnit "braking system" ;
+    vw:componentProducedAt vw:BrakePlant .
+
+vw:BrakeSystem_HeavyDuty a vw:BrakeSystem, vw:Component ;
+    rdfs:label "Heavy-duty braking system (illustrative)" ;
+    vw:componentCategory vw:BrakingSystemCategory ;
+    vw:componentSupplier vw:Supplier_HeavyVehicleSystems ;
+    vw:componentUnit "braking system" ;
+    vw:componentProducedAt vw:HeavyVehiclePlant .
+
+vw:Infotainment_Standard a vw:InfotainmentSystem, vw:Component ;
+    rdfs:label "Standard infotainment unit (illustrative)" ;
+    vw:componentCategory vw:InfotainmentCategory ;
+    vw:componentSupplier vw:Supplier_InfotainmentSystems ;
+    vw:componentUnit "infotainment unit" ;
+    vw:componentProducedAt vw:InfotainmentPlant .
+
+vw:Infotainment_Premium a vw:InfotainmentSystem, vw:Component ;
+    rdfs:label "Premium infotainment unit (illustrative)" ;
+    vw:componentCategory vw:InfotainmentCategory ;
+    vw:componentSupplier vw:Supplier_InfotainmentSystems ;
+    vw:componentUnit "infotainment unit" ;
+    vw:componentProducedAt vw:InfotainmentPlant .
+
+vw:Infotainment_Commercial a vw:InfotainmentSystem, vw:Component ;
+    rdfs:label "Commercial infotainment unit (illustrative)" ;
+    vw:componentCategory vw:InfotainmentCategory ;
+    vw:componentSupplier vw:Supplier_InfotainmentSystems ;
+    vw:componentUnit "commercial infotainment unit" ;
+    vw:componentProducedAt vw:InfotainmentPlant .
+
+vw:TyreSet_Standard a vw:TyreSet, vw:Component ;
+    rdfs:label "Standard tyre set (illustrative)" ;
+    vw:componentCategory vw:TyreSetCategory ;
+    vw:componentSupplier vw:Supplier_TireSystems ;
+    vw:componentUnit "tyre set" ;
+    vw:componentProducedAt vw:TirePlant .
+
+vw:TyreSet_Performance a vw:TyreSet, vw:Component ;
+    rdfs:label "Performance tyre set (illustrative)" ;
+    vw:componentCategory vw:TyreSetCategory ;
+    vw:componentSupplier vw:Supplier_TireSystems ;
+    vw:componentUnit "tyre set" ;
+    vw:componentProducedAt vw:TirePlant .
+
+vw:TyreSet_HeavyDuty a vw:TyreSet, vw:Component ;
+    rdfs:label "Heavy-duty tyre set (illustrative)" ;
+    vw:componentCategory vw:TyreSetCategory ;
+    vw:componentSupplier vw:Supplier_HeavyVehicleSystems ;
+    vw:componentUnit "tyre set" ;
+    vw:componentProducedAt vw:HeavyVehiclePlant .
+
+# Supply contracts and projected pooled annual orders
+
+vw:SupplyContract_01_EA211_15TSI a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Engine assembly" ;
+    vw:contractCoversComponent vw:EA211_15TSI ;
+    vw:contractSupplier vw:Supplier_PowertrainWorks ;
+    vw:contractIncludesModel vw:Golf, vw:Octavia, vw:Passat ;
+    vw:currentContractedAnnualVolume 525000 ;
+    vw:projectedAnnualComponentVolume 600000 ;
+    vw:discountTierAnnualVolume 580000 ;
+    vw:currentUnitPriceEUR "2200.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "2050.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_02_ID4ElectricDrive a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for MEB electric drive unit" ;
+    vw:contractCoversComponent vw:ID4ElectricDrive ;
+    vw:contractSupplier vw:Supplier_ElectricDriveWorks ;
+    vw:contractIncludesModel vw:Enyaq, vw:ID4 ;
+    vw:currentContractedAnnualVolume 200000 ;
+    vw:projectedAnnualComponentVolume 265000 ;
+    vw:discountTierAnnualVolume 250000 ;
+    vw:currentUnitPriceEUR "4500.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "4200.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_03_Porsche911Engine a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Performance engine assembly" ;
+    vw:contractCoversComponent vw:Porsche911Engine ;
+    vw:contractSupplier vw:Supplier_PerformanceParts ;
+    vw:contractIncludesModel vw:911, vw:Cayenne, vw:Huracan, vw:Urus ;
+    vw:currentContractedAnnualVolume 180000 ;
+    vw:projectedAnnualComponentVolume 172000 ;
+    vw:discountTierAnnualVolume 190000 ;
+    vw:currentUnitPriceEUR "9000.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "8700.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_04_A4TSI a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Audi engine assembly" ;
+    vw:contractCoversComponent vw:A4TSI ;
+    vw:contractSupplier vw:Supplier_PowertrainWorks ;
+    vw:contractIncludesModel vw:A4, vw:Q5 ;
+    vw:currentContractedAnnualVolume 200000 ;
+    vw:projectedAnnualComponentVolume 230000 ;
+    vw:discountTierAnnualVolume 220000 ;
+    vw:currentUnitPriceEUR "3600.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "3400.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_05_ETronElectricDrive a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Premium electric drive unit" ;
+    vw:contractCoversComponent vw:ETronElectricDrive ;
+    vw:contractSupplier vw:Supplier_ElectricDriveWorks ;
+    vw:contractIncludesModel vw:Taycan, vw:e-tron ;
+    vw:currentContractedAnnualVolume 90000 ;
+    vw:projectedAnnualComponentVolume 100000 ;
+    vw:discountTierAnnualVolume 115000 ;
+    vw:currentUnitPriceEUR "5000.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "4800.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_06_ScaniaRSeriesEngine a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Heavy-duty diesel engine" ;
+    vw:contractCoversComponent vw:ScaniaRSeriesEngine ;
+    vw:contractSupplier vw:Supplier_HeavyVehicleSystems ;
+    vw:contractIncludesModel vw:RSeries, vw:TGX ;
+    vw:currentContractedAnnualVolume 160000 ;
+    vw:projectedAnnualComponentVolume 175000 ;
+    vw:discountTierAnnualVolume 180000 ;
+    vw:currentUnitPriceEUR "15000.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "14500.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_07_StandardPassengerSeat a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Standard passenger seat set" ;
+    vw:contractCoversComponent vw:StandardPassengerSeat ;
+    vw:contractSupplier vw:PassengerSeatManufacturer ;
+    vw:contractIncludesModel vw:A4, vw:Enyaq, vw:Golf, vw:ID4, vw:Octavia, vw:Passat, vw:Q5, vw:e-tron ;
+    vw:currentContractedAnnualVolume 960000 ;
+    vw:projectedAnnualComponentVolume 1150000 ;
+    vw:discountTierAnnualVolume 1100000 ;
+    vw:currentUnitPriceEUR "450.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "420.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_08_PerformanceSeat a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Performance seat set" ;
+    vw:contractCoversComponent vw:PerformanceSeat ;
+    vw:contractSupplier vw:PerformanceSeatManufacturer ;
+    vw:contractIncludesModel vw:911, vw:Cayenne, vw:Huracan, vw:Taycan, vw:Urus ;
+    vw:currentContractedAnnualVolume 225000 ;
+    vw:projectedAnnualComponentVolume 217000 ;
+    vw:discountTierAnnualVolume 240000 ;
+    vw:currentUnitPriceEUR "1250.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "1200.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_09_CommercialSeat a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Commercial vehicle seat set" ;
+    vw:contractCoversComponent vw:CommercialSeat ;
+    vw:contractSupplier vw:CommercialSeatManufacturer ;
+    vw:contractIncludesModel vw:RSeries, vw:TGX ;
+    vw:currentContractedAnnualVolume 150000 ;
+    vw:projectedAnnualComponentVolume 175000 ;
+    vw:discountTierAnnualVolume 170000 ;
+    vw:currentUnitPriceEUR "700.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "650.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_10_BatteryPack_MEB a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for MEB battery pack" ;
+    vw:contractCoversComponent vw:BatteryPack_MEB ;
+    vw:contractSupplier vw:Supplier_BatterySystems ;
+    vw:contractIncludesModel vw:ID4, vw:Enyaq ;
+    vw:currentContractedAnnualVolume 200000 ;
+    vw:projectedAnnualComponentVolume 265000 ;
+    vw:discountTierAnnualVolume 250000 ;
+    vw:currentUnitPriceEUR "7800.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "7400.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_11_BatteryPack_J1 a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for J1 battery pack" ;
+    vw:contractCoversComponent vw:BatteryPack_J1 ;
+    vw:contractSupplier vw:Supplier_BatterySystems ;
+    vw:contractIncludesModel vw:Taycan ;
+    vw:currentContractedAnnualVolume 42000 ;
+    vw:projectedAnnualComponentVolume 45000 ;
+    vw:discountTierAnnualVolume 50000 ;
+    vw:currentUnitPriceEUR "11000.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "10500.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_12_BatteryPack_Etron a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for e-tron battery pack" ;
+    vw:contractCoversComponent vw:BatteryPack_Etron ;
+    vw:contractSupplier vw:Supplier_BatterySystems ;
+    vw:contractIncludesModel vw:e-tron ;
+    vw:currentContractedAnnualVolume 50000 ;
+    vw:projectedAnnualComponentVolume 55000 ;
+    vw:discountTierAnnualVolume 60000 ;
+    vw:currentUnitPriceEUR "8500.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "8200.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_13_Transmission_Standard a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Standard transmission unit" ;
+    vw:contractCoversComponent vw:Transmission_Standard ;
+    vw:contractSupplier vw:Supplier_TransmissionSystems ;
+    vw:contractIncludesModel vw:Golf, vw:ID4, vw:Passat, vw:Octavia, vw:Enyaq, vw:A4, vw:Q5, vw:e-tron ;
+    vw:currentContractedAnnualVolume 960000 ;
+    vw:projectedAnnualComponentVolume 1150000 ;
+    vw:discountTierAnnualVolume 1100000 ;
+    vw:currentUnitPriceEUR "1400.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "1320.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_14_Transmission_Performance a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Performance transmission unit" ;
+    vw:contractCoversComponent vw:Transmission_Performance ;
+    vw:contractSupplier vw:Supplier_TransmissionSystems ;
+    vw:contractIncludesModel vw:911, vw:Taycan, vw:Cayenne, vw:Urus, vw:Huracan ;
+    vw:currentContractedAnnualVolume 225000 ;
+    vw:projectedAnnualComponentVolume 217000 ;
+    vw:discountTierAnnualVolume 240000 ;
+    vw:currentUnitPriceEUR "2600.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "2450.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_15_Transmission_HeavyDuty a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Heavy-duty transmission unit" ;
+    vw:contractCoversComponent vw:Transmission_HeavyDuty ;
+    vw:contractSupplier vw:Supplier_HeavyVehicleSystems ;
+    vw:contractIncludesModel vw:RSeries, vw:TGX ;
+    vw:currentContractedAnnualVolume 150000 ;
+    vw:projectedAnnualComponentVolume 175000 ;
+    vw:discountTierAnnualVolume 170000 ;
+    vw:currentUnitPriceEUR "3500.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "3300.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_16_BrakeSystem_Standard a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Standard braking system" ;
+    vw:contractCoversComponent vw:BrakeSystem_Standard ;
+    vw:contractSupplier vw:Supplier_BrakeSystems ;
+    vw:contractIncludesModel vw:Golf, vw:ID4, vw:Passat, vw:Octavia, vw:Enyaq, vw:A4, vw:Q5, vw:e-tron ;
+    vw:currentContractedAnnualVolume 1160000 ;
+    vw:projectedAnnualComponentVolume 1150000 ;
+    vw:discountTierAnnualVolume 1200000 ;
+    vw:currentUnitPriceEUR "700.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "650.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_17_BrakeSystem_Performance a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Performance braking system" ;
+    vw:contractCoversComponent vw:BrakeSystem_Performance ;
+    vw:contractSupplier vw:Supplier_BrakeSystems ;
+    vw:contractIncludesModel vw:911, vw:Taycan, vw:Cayenne, vw:Urus, vw:Huracan ;
+    vw:currentContractedAnnualVolume 225000 ;
+    vw:projectedAnnualComponentVolume 217000 ;
+    vw:discountTierAnnualVolume 240000 ;
+    vw:currentUnitPriceEUR "1600.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "1500.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_18_BrakeSystem_HeavyDuty a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Heavy-duty braking system" ;
+    vw:contractCoversComponent vw:BrakeSystem_HeavyDuty ;
+    vw:contractSupplier vw:Supplier_HeavyVehicleSystems ;
+    vw:contractIncludesModel vw:RSeries, vw:TGX ;
+    vw:currentContractedAnnualVolume 180000 ;
+    vw:projectedAnnualComponentVolume 175000 ;
+    vw:discountTierAnnualVolume 190000 ;
+    vw:currentUnitPriceEUR "2200.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "2050.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_19_Infotainment_Standard a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Standard infotainment unit" ;
+    vw:contractCoversComponent vw:Infotainment_Standard ;
+    vw:contractSupplier vw:Supplier_InfotainmentSystems ;
+    vw:contractIncludesModel vw:Golf, vw:ID4, vw:Passat, vw:Octavia, vw:Enyaq, vw:A4, vw:Q5, vw:e-tron ;
+    vw:currentContractedAnnualVolume 1160000 ;
+    vw:projectedAnnualComponentVolume 1150000 ;
+    vw:discountTierAnnualVolume 1150000 ;
+    vw:currentUnitPriceEUR "900.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "850.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_20_Infotainment_Premium a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Premium infotainment unit" ;
+    vw:contractCoversComponent vw:Infotainment_Premium ;
+    vw:contractSupplier vw:Supplier_InfotainmentSystems ;
+    vw:contractIncludesModel vw:911, vw:Taycan, vw:Cayenne, vw:Urus, vw:Huracan ;
+    vw:currentContractedAnnualVolume 225000 ;
+    vw:projectedAnnualComponentVolume 217000 ;
+    vw:discountTierAnnualVolume 240000 ;
+    vw:currentUnitPriceEUR "1800.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "1700.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_21_Infotainment_Commercial a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Commercial infotainment unit" ;
+    vw:contractCoversComponent vw:Infotainment_Commercial ;
+    vw:contractSupplier vw:Supplier_InfotainmentSystems ;
+    vw:contractIncludesModel vw:RSeries, vw:TGX ;
+    vw:currentContractedAnnualVolume 150000 ;
+    vw:projectedAnnualComponentVolume 175000 ;
+    vw:discountTierAnnualVolume 170000 ;
+    vw:currentUnitPriceEUR "1200.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "1120.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_22_TyreSet_Standard a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Standard tyre set" ;
+    vw:contractCoversComponent vw:TyreSet_Standard ;
+    vw:contractSupplier vw:Supplier_TireSystems ;
+    vw:contractIncludesModel vw:Golf, vw:ID4, vw:Passat, vw:Octavia, vw:Enyaq, vw:A4, vw:Q5, vw:e-tron ;
+    vw:currentContractedAnnualVolume 1140000 ;
+    vw:projectedAnnualComponentVolume 1150000 ;
+    vw:discountTierAnnualVolume 1200000 ;
+    vw:currentUnitPriceEUR "600.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "560.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_23_TyreSet_Performance a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Performance tyre set" ;
+    vw:contractCoversComponent vw:TyreSet_Performance ;
+    vw:contractSupplier vw:Supplier_TireSystems ;
+    vw:contractIncludesModel vw:911, vw:Taycan, vw:Cayenne, vw:Urus, vw:Huracan ;
+    vw:currentContractedAnnualVolume 220000 ;
+    vw:projectedAnnualComponentVolume 217000 ;
+    vw:discountTierAnnualVolume 240000 ;
+    vw:currentUnitPriceEUR "1200.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "1100.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
+vw:SupplyContract_24_TyreSet_HeavyDuty a vw:SupplyContract ;
+    rdfs:label "Illustrative supply contract for Heavy-duty tyre set" ;
+    vw:contractCoversComponent vw:TyreSet_HeavyDuty ;
+    vw:contractSupplier vw:Supplier_HeavyVehicleSystems ;
+    vw:contractIncludesModel vw:RSeries, vw:TGX ;
+    vw:currentContractedAnnualVolume 160000 ;
+    vw:projectedAnnualComponentVolume 175000 ;
+    vw:discountTierAnnualVolume 180000 ;
+    vw:currentUnitPriceEUR "1800.00"^^xsd:decimal ;
+    vw:discountUnitPriceEUR "1650.00"^^xsd:decimal ;
+    vw:contractCurrency "EUR" ;
+    vw:contractStartDate "2025-01-01"^^xsd:date ;
+    vw:contractEndDate "2027-12-31"^^xsd:date .
+
