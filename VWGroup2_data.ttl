@@ -1,0 +1,386 @@
+@prefix vw: <http://example.org/volkswagen/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+# Vehicle A-box assertions for the Volkswagen ontology.
+# Seat model and manufacturer assignments below are illustrative.
+# Sales profiles and model-fit tags are in VW_Sales_data.ttl.
+
+# Powertrain Categories
+vw:BatteryElectric a vw:Powertrain ;
+    rdfs:label "Battery electric" .
+
+vw:PlugInHybrid a vw:Powertrain ;
+    rdfs:label "Plug-in hybrid" .
+
+vw:Petrol a vw:Powertrain ;
+    rdfs:label "Petrol" .
+
+vw:Diesel a vw:Powertrain ;
+    rdfs:label "Diesel" .
+
+##############################
+# A-Box: Volkswagen Group data
+##############################
+
+vw:VolkswagenGroup a vw:Company ;
+    rdfs:label "Volkswagen Group" ;
+    vw:headquarters "Wolfsburg, Germany" ;
+    vw:interestsIn
+	vw:Normal,
+	vw:SportLuxury,
+	vw:Trucks .
+
+vw:Normal a vw:BrandGroup ;
+    rdfs:label "Normal cars" ;
+    vw:hasBrand
+	vw:Volkswagen,
+	vw:Skoda .
+
+vw:SportLuxury a vw:BrandGroup ;
+    rdfs:label "Sport & Luxury cars" ;
+    vw:hasBrand 
+	vw:Porsche,
+	vw:Audi,
+	vw:Lamborghini .
+
+vw:Trucks a vw:BrandGroup ;
+    rdfs:label "Brand Group Trucks" ;
+    vw:hasBrand
+	vw:Scania,
+	vw:MAN .
+
+# Brand-to-model index; model details are grouped in the model records below.
+#Brands
+vw:Volkswagen a vw:Brand ;
+    rdfs:label "Volkswagen" ;
+    vw:hasProductionSite vw:Wolfsburg ;
+    vw:hasModel vw:Golf, vw:ID4, vw:Passat .
+
+vw:Skoda a vw:Brand ;
+    rdfs:label "Skoda" ;
+    vw:hasProductionSite vw:MladaBoleslav ;
+    vw:hasModel vw:Octavia, vw:Enyaq .
+
+vw:Porsche a vw:Brand ;
+    rdfs:label "Porsche" ;
+    vw:hasProductionSite vw:Stuttgart ;
+    vw:hasModel vw:911, vw:Taycan, vw:Cayenne .
+
+vw:Audi a vw:Brand ;
+    rdfs:label "Audi" ;
+    vw:hasProductionSite vw:Ingolstadt ;
+    vw:hasModel vw:A4, vw:Q5, vw:e-tron .
+
+vw:Lamborghini a vw:Brand ;
+    rdfs:label "Lamborghini" ;
+    vw:hasProductionSite vw:SantAgataBolognese ;
+    vw:hasModel vw:Urus, vw:Huracan .
+
+vw:Scania a vw:Brand ;
+    rdfs:label "Scania" ;
+    vw:hasProductionSite vw:Sodertalje ;
+    vw:hasModel vw:RSeries .
+
+vw:MAN a vw:Brand ;
+    rdfs:label "MAN" ;
+    vw:hasProductionSite vw:Munich ;
+    vw:hasModel vw:TGX .
+
+# Car models examples
+
+# Vehicle type values
+vw:SUV a vw:VehicleType ;
+    rdfs:label "SUV" .
+vw:Coupe a vw:VehicleType ;
+    rdfs:label "Coupe" .
+vw:RaceCar a vw:VehicleType ;
+    rdfs:label "Race car" .
+vw:Sedan a vw:VehicleType ;
+    rdfs:label "Sedan" .
+vw:Hatchback a vw:VehicleType ;
+    rdfs:label "Hatchback" .
+vw:Truck a vw:VehicleType ;
+    rdfs:label "Truck" .
+
+# Engine model values
+vw:EA211_15TSI a vw:EngineModel ;
+    rdfs:label "EA211 1.5 TSI" .
+vw:ID4ElectricDrive a vw:EngineModel ;
+    rdfs:label "ID.4 electric drive" .
+vw:OctaviaTSI a vw:EngineModel ;
+    rdfs:label "Octavia TSI engine" .
+vw:EnyaqElectricDrive a vw:EngineModel ;
+    rdfs:label "Enyaq electric drive" .
+vw:Porsche911Engine a vw:EngineModel ;
+    rdfs:label "911 engine" .
+vw:TaycanElectricDrive a vw:EngineModel ;
+    rdfs:label "Taycan electric drive" .
+vw:CayenneEngine a vw:EngineModel ;
+    rdfs:label "Cayenne engine" .
+vw:A4TSI a vw:EngineModel ;
+    rdfs:label "A4 TSI engine" .
+vw:Q5TSI a vw:EngineModel ;
+    rdfs:label "Q5 TSI engine" .
+vw:ETronElectricDrive a vw:EngineModel ;
+    rdfs:label "e-tron electric drive" .
+vw:UrusEngine a vw:EngineModel ;
+    rdfs:label "Urus engine" .
+vw:HuracanEngine a vw:EngineModel ;
+    rdfs:label "Huracán engine" .
+vw:ScaniaRSeriesEngine a vw:EngineModel ;
+    rdfs:label "Scania R-series engine" .
+vw:MAN_TGX_Engine a vw:EngineModel ;
+    rdfs:label "MAN TGX engine" .
+
+vw:Golf a vw:Model ; 
+    rdfs:label "Golf" ;
+    vw:modelOf vw:Volkswagen ;
+    vw:price "30000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:EA211_15TSI ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:Hatchback ;
+    vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:carsProducedPerYear 250000 ;
+    vw:customerAppreciationRating "4.3"^^xsd:decimal .
+
+vw:ID4 a vw:Model ; 
+    rdfs:label "ID.4" ;
+    vw:modelOf vw:Volkswagen ;
+    vw:price "45000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:BatteryElectric ;
+    vw:hasEngineModel vw:ID4ElectricDrive ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:SUV ;
+    vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:carsProducedPerYear 100000 ;
+    vw:customerAppreciationRating "4.1"^^xsd:decimal .
+
+vw:Passat a vw:Model ; 
+    rdfs:label "Passat" ;
+    vw:modelOf vw:Volkswagen ;
+    vw:price "40000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:EA211_15TSI ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:Sedan ;
+    vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:carsProducedPerYear 100000 ;
+    vw:customerAppreciationRating "4.2"^^xsd:decimal .
+
+vw:Octavia a vw:Model ; 
+    rdfs:label "Octavia" ;
+    vw:modelOf vw:Skoda ;
+    vw:price "32000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:EA211_15TSI ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:Sedan ;
+    vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:carsProducedPerYear 150000 ;
+    vw:customerAppreciationRating "4.4"^^xsd:decimal .
+
+vw:Enyaq a vw:Model ; 
+    rdfs:label "Enyaq" ;
+    vw:modelOf vw:Skoda ;
+    vw:price "42000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:BatteryElectric ;
+    vw:hasEngineModel vw:ID4ElectricDrive ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:SUV ;
+    vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:carsProducedPerYear 90000 ;
+    vw:customerAppreciationRating "4.5"^^xsd:decimal .
+
+vw:911 a vw:Model ; 
+    rdfs:label "911" ;
+    vw:modelOf vw:Porsche ;
+    vw:price "125000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:Porsche911Engine ;
+    vw:seats "4"^^xsd:integer ;
+    vw:hasVehicleType vw:Coupe, vw:RaceCar ;
+    vw:hasSeatModel vw:PerformanceSeat ;
+    vw:carsProducedPerYear 50000 ;
+    vw:customerAppreciationRating "4.8"^^xsd:decimal .
+
+vw:Taycan a vw:Model ; 
+    rdfs:label "Taycan" ;
+    vw:modelOf vw:Porsche ;
+    vw:price "100000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:BatteryElectric ;
+    vw:hasEngineModel vw:ETronElectricDrive ;
+    vw:seats "4"^^xsd:integer ;
+    vw:hasVehicleType vw:Sedan ;
+    vw:hasSeatModel vw:PerformanceSeat ;
+    vw:carsProducedPerYear 30000 ;
+    vw:customerAppreciationRating "4.3"^^xsd:decimal .
+
+vw:Cayenne a vw:Model ; 
+    rdfs:label "Cayenne" ;
+    vw:modelOf vw:Porsche ;
+    vw:price "90000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:Porsche911Engine ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:SUV ;
+    vw:hasSeatModel vw:PerformanceSeat ;
+    vw:carsProducedPerYear 90000 ;
+    vw:customerAppreciationRating "4.6"^^xsd:decimal .
+
+vw:A4 a vw:Model ; 
+    rdfs:label "A4" ;
+    vw:modelOf vw:Audi ;
+    vw:price "45000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:A4TSI ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:Sedan ;
+    vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:carsProducedPerYear 70000 ;
+    vw:customerAppreciationRating "4.2"^^xsd:decimal .
+
+vw:Q5 a vw:Model ; 
+    rdfs:label "Q5" ;
+    vw:modelOf vw:Audi ;
+    vw:price "55000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:A4TSI ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:SUV ;
+    vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:carsProducedPerYear 120000 ;
+    vw:customerAppreciationRating "4.4"^^xsd:decimal .
+
+vw:e-tron a vw:Model ; 
+    rdfs:label "e-tron" ;
+    vw:modelOf vw:Audi ;
+    vw:price "70000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:BatteryElectric ;
+    vw:hasEngineModel vw:ETronElectricDrive ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:SUV ;
+    vw:hasSeatModel vw:StandardPassengerSeat ;
+    vw:carsProducedPerYear 40000 ;
+    vw:customerAppreciationRating "4.1"^^xsd:decimal .
+
+vw:Urus a vw:Model ; 
+    rdfs:label "Urus" ;
+    vw:modelOf vw:Lamborghini ;
+    vw:price "230000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:Porsche911Engine ;
+    vw:seats "5"^^xsd:integer ;
+    vw:hasVehicleType vw:SUV ;
+    vw:hasSeatModel vw:PerformanceSeat ;
+    vw:carsProducedPerYear 6000 ;
+    vw:customerAppreciationRating "4.7"^^xsd:decimal .
+
+vw:Huracan a vw:Model ; 
+    rdfs:label "Huracán" ;
+    vw:modelOf vw:Lamborghini ;
+    vw:price "250000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Petrol ;
+    vw:hasEngineModel vw:Porsche911Engine ;
+    vw:seats "2"^^xsd:integer ;
+    vw:hasVehicleType vw:Coupe ;
+    vw:hasSeatModel vw:PerformanceSeat ;
+    vw:carsProducedPerYear 3000 ;
+    vw:customerAppreciationRating "4.8"^^xsd:decimal .
+
+vw:RSeries a vw:Model ; 
+    rdfs:label "Scania R-series" ;
+    vw:modelOf vw:Scania ;
+    vw:price "150000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Diesel ;
+    vw:hasEngineModel vw:ScaniaRSeriesEngine ;
+    vw:seats "2"^^xsd:integer ;
+    vw:hasVehicleType vw:Truck ;
+    vw:hasSeatModel vw:CommercialSeat ;
+    vw:carsProducedPerYear 80000 ;
+    vw:customerAppreciationRating "4.3"^^xsd:decimal .
+
+vw:TGX a vw:Model ; 
+    rdfs:label "MAN TGX" ;
+    vw:modelOf vw:MAN ;
+    vw:price "140000.00"^^xsd:decimal ;
+    vw:hasPowertrain vw:Diesel ;
+    vw:hasEngineModel vw:ScaniaRSeriesEngine ;
+    vw:seats "2"^^xsd:integer ;
+    vw:hasVehicleType vw:Truck ;
+    vw:hasSeatModel vw:CommercialSeat ;
+    vw:carsProducedPerYear 60000 ;
+    vw:customerAppreciationRating "4.2"^^xsd:decimal .
+
+# Production sites 
+vw:Wolfsburg a vw:ProductionSite ;
+    rdfs:label "Volkswagen Wolfsburg Plant" ;
+    vw:locatedIn "Wolfsburg, Germany" .
+
+vw:Ingolstadt a vw:ProductionSite ;
+    rdfs:label "Audi Ingolstadt Plant" ;
+    vw:locatedIn "Ingolstadt, Germany" .
+
+vw:Stuttgart a vw:ProductionSite ;
+    rdfs:label "Porsche Stuttgart Plant" ;
+    vw:locatedIn "Stuttgart, Germany" .
+
+vw:MladaBoleslav a vw:ProductionSite ;
+    rdfs:label "Škoda Mladá Boleslav Plant" ;
+    vw:locatedIn "Mladá Boleslav, Czech Republic" .
+
+vw:SantAgataBolognese a vw:ProductionSite ;
+    rdfs:label "Lamborghini Sant’Agata Bolognese Plant" ;
+    vw:locatedIn "Sant’Agata Bolognese, Italy" .
+
+vw:Sodertalje a vw:ProductionSite ;
+    rdfs:label "Scania Södertälje Plant" ;
+    vw:locatedIn "Södertälje, Sweden" .
+
+vw:Munich a vw:ProductionSite ;
+    rdfs:label "MAN Munich Plant" ;
+    vw:locatedIn "Munich, Germany" .
+
+# Illustrative seat production sites
+vw:PassengerSeatPlant a vw:ProductionSite ;
+    rdfs:label "Passenger seat production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:PerformanceSeatPlant a vw:ProductionSite ;
+    rdfs:label "Performance seat production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+vw:CommercialSeatPlant a vw:ProductionSite ;
+    rdfs:label "Commercial seat production site (illustrative)" ;
+    vw:locatedIn "Illustrative location" .
+
+# Illustrative seat models and manufacturers
+vw:PassengerSeatManufacturer a vw:SeatManufacturer ;
+    rdfs:label "Northstar Seating" .
+
+vw:PerformanceSeatManufacturer a vw:SeatManufacturer ;
+    rdfs:label "Apex Performance Seating" .
+
+vw:CommercialSeatManufacturer a vw:SeatManufacturer ;
+    rdfs:label "Roadstead Commercial Seating" .
+
+vw:StandardPassengerSeat a vw:SeatModel ;
+    rdfs:label "Standard passenger seat model (illustrative)" ;
+    vw:hasSeatManufacturer vw:PassengerSeatManufacturer ;
+    vw:seatPrice "450.00"^^xsd:decimal ;
+    vw:seatProducedAt vw:PassengerSeatPlant .
+
+vw:PerformanceSeat a vw:SeatModel ;
+    rdfs:label "Performance seat model (illustrative)" ;
+    vw:hasSeatManufacturer vw:PerformanceSeatManufacturer ;
+    vw:seatPrice "1250.00"^^xsd:decimal ;
+    vw:seatProducedAt vw:PerformanceSeatPlant .
+
+vw:CommercialSeat a vw:SeatModel ;
+    rdfs:label "Commercial vehicle seat model (illustrative)" ;
+    vw:hasSeatManufacturer vw:CommercialSeatManufacturer ;
+    vw:seatPrice "700.00"^^xsd:decimal ;
+    vw:seatProducedAt vw:CommercialSeatPlant .
+

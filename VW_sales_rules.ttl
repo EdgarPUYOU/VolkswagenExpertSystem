@@ -1,0 +1,396 @@
+@prefix vw: <http://example.org/volkswagen/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix swrl:   <http://www.w3.org/2003/11/swrl#> .
+@prefix swrla:  <http://www.w3.org/2003/11/swrl#> .
+@prefix swrlb:  <http://www.w3.org/2003/11/swrlb#> .
+
+
+# ============================================================
+# USE CASE 3: CAR RECOMMENDATION
+# ============================================================
+
+# Rule 4:
+# Check whether a model is within the client's budget.
+
+vw:Rule4 a swrl:Imp ;
+rdfs:label "Check client budget" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Client ;
+swrl:argument1 vw:client
+]
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Model ;
+swrl:argument1 vw:model
+]
+[
+a swrl:DatavaluedPropertyAtom ;
+swrl:propertyPredicate vw:price ;
+swrl:argument1 vw:model ;
+swrl:argument2 vw:price
+]
+[
+a swrl:DatavaluedPropertyAtom ;
+swrl:propertyPredicate vw:maxBudget ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:budget
+]
+[
+a swrl:BuiltinAtom ;
+swrl:builtin swrlb:lessThanOrEqual ;
+swrl:arguments ( vw:price vw:budget )
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:withinBudget ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:model
+]
+) .
+
+# Rule 5:
+# Check whether a model has enough seats for the client.
+
+vw:Rule5 a swrl:Imp ;
+rdfs:label "Check minimum seating requirement" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Client ;
+swrl:argument1 vw:client
+]
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Model ;
+swrl:argument1 vw:model
+]
+[
+a swrl:DatavaluedPropertyAtom ;
+swrl:propertyPredicate vw:seats ;
+swrl:argument1 vw:model ;
+swrl:argument2 vw:seatCount
+]
+[
+a swrl:DatavaluedPropertyAtom ;
+swrl:propertyPredicate vw:minimumSeats ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:minimum
+]
+[
+a swrl:BuiltinAtom ;
+swrl:builtin swrlb:greaterThanOrEqual ;
+swrl:arguments ( vw:seatCount vw:minimum )
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:meetsSeatingRequirement ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:model
+]
+) .
+
+# Rule 6:
+
+# Check whether a model matches the client's preferred powertrain.
+
+vw:Rule6 a swrl:Imp ;
+rdfs:label "Check preferred powertrain" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Client ;
+swrl:argument1 vw:client
+]
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Model ;
+swrl:argument1 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:preferredPowertrain ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:powertrain
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:hasPowertrain ;
+swrl:argument1 vw:model ;
+swrl:argument2 vw:powertrain
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesPowertrain ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:model
+]
+) .
+
+# Rule 7:
+
+# Recommend a model only when it satisfies all three criteria.
+
+vw:Rule7 a swrl:Imp ;
+rdfs:label "Recommend a suitable car to a client" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Client ;
+swrl:argument1 vw:client
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:withinBudget ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:meetsSeatingRequirement ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesPowertrain ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:model
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:suitableModel ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:model
+]
+) .
+
+# ============================================================
+# SALES LEAD MATCHING
+# Demographic and location attributes are descriptive only.
+# Lead inference uses stated preferences and personalization consent.
+# ============================================================
+
+# Rule 8: Match the customer's preferred vehicle type.
+vw:Rule8 a swrl:Imp ;
+rdfs:label "Match preferred vehicle type" ;
+swrl:body (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:preferredVehicleType ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:vehicleType
+]
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Model ;
+swrl:argument1 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:hasVehicleType ;
+swrl:argument1 vw:model ;
+swrl:argument2 vw:vehicleType
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesVehicleType ;
+swrl:argument1 vw:client ;
+swrl:argument2 vw:model
+]
+) .
+
+# Rule 9: Match an explicitly stated customer interest to a model.
+vw:Rule9 a swrl:Imp ;
+rdfs:label "Match stated customer interest" ;
+swrl:body (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:hasInterest ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:interest
+]
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Model ;
+swrl:argument1 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:modelMatchesInterest ;
+swrl:argument1 vw:model ;
+swrl:argument2 vw:interest
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesCustomerInterest ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+) .
+
+# Rule 10: Match the customer's stated vehicle use to a model.
+vw:Rule10 a swrl:Imp ;
+rdfs:label "Match stated vehicle use" ;
+swrl:body (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:usesVehicleFor ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:vehicleUse
+]
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Model ;
+swrl:argument1 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:modelSupportsUse ;
+swrl:argument1 vw:model ;
+swrl:argument2 vw:vehicleUse
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesVehicleUse ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+) .
+
+# Rule 11: Infer a likely match from budget, seats, powertrain, body type,
+# stated interest, and explicit consent to personalization.
+vw:Rule11 a swrl:Imp ;
+rdfs:label "Infer likely customer interest from stated preferences" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:PotentialCustomer ;
+swrl:argument1 vw:customer
+]
+[
+a swrl:DatavaluedPropertyAtom ;
+swrl:propertyPredicate vw:hasPersonalizationConsent ;
+swrl:argument1 vw:customer ;
+swrl:argument2 "true"^^xsd:boolean
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:suitableModel ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesVehicleType ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesCustomerInterest ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:likelyInterestedIn ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+) .
+
+# Rule 12: A stated use case can also establish a likely match.
+vw:Rule12 a swrl:Imp ;
+rdfs:label "Infer likely interest from stated vehicle use" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:PotentialCustomer ;
+swrl:argument1 vw:customer
+]
+[
+a swrl:DatavaluedPropertyAtom ;
+swrl:propertyPredicate vw:hasPersonalizationConsent ;
+swrl:argument1 vw:customer ;
+swrl:argument2 "true"^^xsd:boolean
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:suitableModel ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesVehicleType ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:matchesVehicleUse ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:likelyInterestedIn ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+) .
+
+# Rule 13: Mark likely matches with an explicitly near-term buying intent.
+vw:Rule13 a swrl:Imp ;
+rdfs:label "Identify high-intent model leads" ;
+swrl:body (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:likelyInterestedIn ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:buyingStage ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:ReadyToPurchase
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:purchaseHorizon ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:WithinThreeMonths
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:highIntentForModel ;
+swrl:argument1 vw:customer ;
+swrl:argument2 vw:model
+]
+) .

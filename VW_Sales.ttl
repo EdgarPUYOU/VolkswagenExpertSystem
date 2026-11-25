@@ -1,0 +1,188 @@
+@prefix vw: <http://example.org/volkswagen/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Sales ontology schema. Load with VWGroup2.ttl, VW_Sales_data.ttl, and VW_sales_rules.ttl.
+
+vw:SalesOntology a owl:Ontology ;
+    rdfs:label "Volkswagen Sales Ontology" ;
+    rdfs:comment "Sales vocabulary for customer profiles and model matching." .
+
+# Classes for Car recommendation rules 
+
+vw:Client a owl:Class .
+vw:PotentialCustomer a owl:Class ;
+    rdfs:subClassOf vw:Client .
+vw:IndividualCustomer a owl:Class ;
+    rdfs:subClassOf vw:PotentialCustomer ;
+    owl:disjointWith vw:BusinessCustomer .
+vw:BusinessCustomer a owl:Class ;
+    rdfs:subClassOf vw:PotentialCustomer .
+
+vw:AgeBand a owl:Class .
+vw:AnnualIncomeBand a owl:Class .
+vw:HouseholdType a owl:Class .
+vw:MarketRegion a owl:Class .
+vw:CustomerInterest a owl:Class .
+vw:VehicleUse a owl:Class .
+vw:PurchaseHorizon a owl:Class .
+vw:BuyingStage a owl:Class .
+
+vw:BudgetSuitableModel a owl:Class .
+vw:SeatingSuitableModel a owl:Class .
+vw:PowertrainSuitableModel a owl:Class .
+vw:SuitableCar a owl:Class ;
+rdfs:subClassOf vw:Model .
+
+vw:preferredPowertrain a owl:ObjectProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range vw:Powertrain .
+
+# Client-to-model matching relationship
+vw:withinBudget a owl:ObjectProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range vw:Model .
+
+vw:meetsSeatingRequirement a owl:ObjectProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range vw:Model .
+
+vw:matchesPowertrain a owl:ObjectProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range vw:Model .
+
+vw:suitableModel a owl:ObjectProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range vw:Model .
+
+vw:hasAgeBand a owl:ObjectProperty ;
+    rdfs:domain vw:IndividualCustomer ;
+    rdfs:range vw:AgeBand .
+
+vw:hasAnnualIncomeBand a owl:ObjectProperty ;
+    rdfs:domain vw:IndividualCustomer ;
+    rdfs:range vw:AnnualIncomeBand .
+
+vw:hasHouseholdType a owl:ObjectProperty ;
+    rdfs:domain vw:IndividualCustomer ;
+    rdfs:range vw:HouseholdType .
+
+vw:livesInRegion a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:MarketRegion .
+
+vw:hasInterest a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:CustomerInterest .
+
+vw:usesVehicleFor a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:VehicleUse .
+
+vw:preferredVehicleType a owl:ObjectProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range vw:VehicleType .
+
+vw:preferredBrand a owl:ObjectProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range vw:Brand .
+
+vw:buyingStage a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:BuyingStage .
+
+vw:purchaseHorizon a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:PurchaseHorizon .
+
+vw:modelMatchesInterest a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:CustomerInterest .
+
+vw:modelSupportsUse a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:VehicleUse .
+
+vw:matchesVehicleType a owl:ObjectProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range vw:Model .
+
+vw:matchesCustomerInterest a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:Model .
+
+vw:matchesVehicleUse a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:Model .
+
+vw:likelyInterestedIn a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:Model .
+
+vw:highIntentForModel a owl:ObjectProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range vw:Model .
+
+# Sales and customer profile datatype properties
+vw:maxBudget a owl:DatatypeProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range xsd:decimal .
+
+vw:minimumSeats a owl:DatatypeProperty ;
+    rdfs:domain vw:Client ;
+    rdfs:range xsd:integer .
+
+vw:householdSize a owl:DatatypeProperty ;
+    rdfs:domain vw:IndividualCustomer ;
+    rdfs:range xsd:integer .
+
+vw:childrenInHousehold a owl:DatatypeProperty ;
+    rdfs:domain vw:IndividualCustomer ;
+    rdfs:range xsd:boolean .
+
+vw:hasHomeCharging a owl:DatatypeProperty ;
+    rdfs:domain vw:IndividualCustomer ;
+    rdfs:range xsd:boolean .
+
+vw:hasPersonalizationConsent a owl:DatatypeProperty ;
+    rdfs:domain vw:PotentialCustomer ;
+    rdfs:range xsd:boolean .
+
+vw:incomeBandMinEUR a owl:DatatypeProperty ;
+    rdfs:domain vw:AnnualIncomeBand ;
+    rdfs:range xsd:decimal .
+
+vw:incomeBandMaxEUR a owl:DatatypeProperty ;
+    rdfs:domain vw:AnnualIncomeBand ;
+    rdfs:range xsd:decimal .
+
+vw:ageBandMinYears a owl:DatatypeProperty ;
+    rdfs:domain vw:AgeBand ;
+    rdfs:range xsd:integer .
+
+vw:ageBandMaxYears a owl:DatatypeProperty ;
+    rdfs:domain vw:AgeBand ;
+    rdfs:range xsd:integer .
+
+vw:regionCountry a owl:DatatypeProperty ;
+    rdfs:domain vw:MarketRegion ;
+    rdfs:range xsd:string .
+
+vw:urbanicity a owl:DatatypeProperty ;
+    rdfs:domain vw:MarketRegion ;
+    rdfs:range xsd:string .
+
+vw:publicChargingLevel a owl:DatatypeProperty ;
+    rdfs:domain vw:MarketRegion ;
+    rdfs:range xsd:string .
+
+vw:businessSector a owl:DatatypeProperty ;
+    rdfs:domain vw:BusinessCustomer ;
+    rdfs:range xsd:string .
+
+vw:fleetSize a owl:DatatypeProperty ;
+    rdfs:domain vw:BusinessCustomer ;
+    rdfs:range xsd:integer .
+

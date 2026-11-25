@@ -1,0 +1,293 @@
+@prefix vw: <http://example.org/volkswagen/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Synthetic sales data. Load with VWGroup2.ttl, VW_Sales.ttl, and VW_sales_rules.ttl.
+# Age, income, and location are coarse profile context, not matching criteria.
+
+# Coarse age bands; no exact customer ages are stored.
+vw:Age18To29 a vw:AgeBand ;
+    rdfs:label "18-29" ;
+    vw:ageBandMinYears 18 ;
+    vw:ageBandMaxYears 29 .
+
+vw:Age30To44 a vw:AgeBand ;
+    rdfs:label "30-44" ;
+    vw:ageBandMinYears 30 ;
+    vw:ageBandMaxYears 44 .
+
+vw:Age45To64 a vw:AgeBand ;
+    rdfs:label "45-64" ;
+    vw:ageBandMinYears 45 ;
+    vw:ageBandMaxYears 64 .
+
+vw:Age65Plus a vw:AgeBand ;
+    rdfs:label "65+" ;
+    vw:ageBandMinYears 65 .
+
+# Broad annual income bands; avoid storing exact salaries.
+vw:IncomeUnder30k a vw:AnnualIncomeBand ;
+    rdfs:label "Under EUR 30,000 per year" ;
+    vw:incomeBandMaxEUR "30000.00"^^xsd:decimal .
+
+vw:Income30To60k a vw:AnnualIncomeBand ;
+    rdfs:label "EUR 30,000-60,000 per year" ;
+    vw:incomeBandMinEUR "30000.00"^^xsd:decimal ;
+    vw:incomeBandMaxEUR "60000.00"^^xsd:decimal .
+
+vw:Income60To100k a vw:AnnualIncomeBand ;
+    rdfs:label "EUR 60,000-100,000 per year" ;
+    vw:incomeBandMinEUR "60000.00"^^xsd:decimal ;
+    vw:incomeBandMaxEUR "100000.00"^^xsd:decimal .
+
+vw:IncomeOver100k a vw:AnnualIncomeBand ;
+    rdfs:label "Over EUR 100,000 per year" ;
+    vw:incomeBandMinEUR "100000.00"^^xsd:decimal .
+
+# Household categories record broad needs, not names or details about family members.
+vw:SinglePersonHousehold a vw:HouseholdType ;
+    rdfs:label "Single-person household" .
+
+vw:CoupleHousehold a vw:HouseholdType ;
+    rdfs:label "Couple household" .
+
+vw:FamilyWithChildrenHousehold a vw:HouseholdType ;
+    rdfs:label "Family with children" .
+
+# Broad market regions; these are not precise residential addresses.
+vw:UrbanGermany a vw:MarketRegion ;
+    rdfs:label "Urban Germany" ;
+    vw:regionCountry "Germany" ;
+    vw:urbanicity "Urban" ;
+    vw:publicChargingLevel "High" .
+
+vw:SuburbanGermany a vw:MarketRegion ;
+    rdfs:label "Suburban Germany" ;
+    vw:regionCountry "Germany" ;
+    vw:urbanicity "Suburban" ;
+    vw:publicChargingLevel "Medium" .
+
+vw:PragueMetro a vw:MarketRegion ;
+    rdfs:label "Prague metropolitan area" ;
+    vw:regionCountry "Czech Republic" ;
+    vw:urbanicity "Urban" ;
+    vw:publicChargingLevel "High" .
+
+# Stated customer interests.
+vw:Interest_EcoMobility a vw:CustomerInterest ;
+    rdfs:label "Sustainable mobility" .
+
+vw:Interest_FamilyTravel a vw:CustomerInterest ;
+    rdfs:label "Family travel" .
+
+vw:Interest_UrbanCommuting a vw:CustomerInterest ;
+    rdfs:label "Urban commuting" .
+
+vw:Interest_PerformanceDriving a vw:CustomerInterest ;
+    rdfs:label "Performance driving" .
+
+vw:Interest_LongDistance a vw:CustomerInterest ;
+    rdfs:label "Long-distance travel" .
+
+vw:Interest_OutdoorAdventure a vw:CustomerInterest ;
+    rdfs:label "Outdoor activities" .
+
+vw:Interest_CommercialTransport a vw:CustomerInterest ;
+    rdfs:label "Commercial transport" .
+
+# Intended vehicle uses.
+vw:Use_DailyCommuting a vw:VehicleUse ;
+    rdfs:label "Daily commuting" .
+
+vw:Use_FamilyTrips a vw:VehicleUse ;
+    rdfs:label "Family trips" .
+
+vw:Use_WeekendDriving a vw:VehicleUse ;
+    rdfs:label "Weekend and leisure driving" .
+
+vw:Use_LongDistance a vw:VehicleUse ;
+    rdfs:label "Long-distance travel" .
+
+vw:Use_OutdoorActivities a vw:VehicleUse ;
+    rdfs:label "Outdoor activities" .
+
+vw:Use_FreightTransport a vw:VehicleUse ;
+    rdfs:label "Freight transport" .
+
+# Self-reported buying stage and purchase horizon.
+vw:Browsing a vw:BuyingStage ;
+    rdfs:label "Browsing" .
+
+vw:ComparingModels a vw:BuyingStage ;
+    rdfs:label "Comparing models" .
+
+vw:ReadyToPurchase a vw:BuyingStage ;
+    rdfs:label "Ready to purchase" .
+
+vw:WithinThreeMonths a vw:PurchaseHorizon ;
+    rdfs:label "Within three months" .
+
+vw:ThreeToSixMonths a vw:PurchaseHorizon ;
+    rdfs:label "Three to six months" .
+
+vw:MoreThanSixMonths a vw:PurchaseHorizon ;
+    rdfs:label "More than six months" .
+
+# Synthetic B2C customer profiles. Budget and requirements are explicit preferences.
+vw:Customer_001 a vw:Client, vw:PotentialCustomer, vw:IndividualCustomer ;
+    rdfs:label "Synthetic customer 001 - family EV shopper" ;
+    vw:hasAgeBand vw:Age30To44 ;
+    vw:hasAnnualIncomeBand vw:Income60To100k ;
+    vw:hasHouseholdType vw:FamilyWithChildrenHousehold ;
+    vw:householdSize 4 ;
+    vw:childrenInHousehold true ;
+    vw:livesInRegion vw:SuburbanGermany ;
+    vw:hasInterest vw:Interest_EcoMobility, vw:Interest_FamilyTravel ;
+    vw:usesVehicleFor vw:Use_FamilyTrips ;
+    vw:preferredVehicleType vw:SUV ;
+    vw:preferredPowertrain vw:BatteryElectric ;
+    vw:maxBudget "55000.00"^^xsd:decimal ;
+    vw:minimumSeats 5 ;
+    vw:hasHomeCharging true ;
+    vw:buyingStage vw:ReadyToPurchase ;
+    vw:purchaseHorizon vw:WithinThreeMonths ;
+    vw:hasPersonalizationConsent true .
+
+vw:Customer_002 a vw:Client, vw:PotentialCustomer, vw:IndividualCustomer ;
+    rdfs:label "Synthetic customer 002 - urban commuter" ;
+    vw:hasAgeBand vw:Age18To29 ;
+    vw:hasAnnualIncomeBand vw:Income30To60k ;
+    vw:hasHouseholdType vw:SinglePersonHousehold ;
+    vw:householdSize 1 ;
+    vw:childrenInHousehold false ;
+    vw:livesInRegion vw:UrbanGermany ;
+    vw:hasInterest vw:Interest_UrbanCommuting ;
+    vw:usesVehicleFor vw:Use_DailyCommuting ;
+    vw:preferredVehicleType vw:Hatchback ;
+    vw:preferredPowertrain vw:Petrol ;
+    vw:maxBudget "35000.00"^^xsd:decimal ;
+    vw:minimumSeats 1 ;
+    vw:hasHomeCharging false ;
+    vw:buyingStage vw:ComparingModels ;
+    vw:purchaseHorizon vw:ThreeToSixMonths ;
+    vw:hasPersonalizationConsent true .
+
+vw:Customer_003 a vw:Client, vw:PotentialCustomer, vw:IndividualCustomer ;
+    rdfs:label "Synthetic customer 003 - performance car shopper" ;
+    vw:hasAgeBand vw:Age45To64 ;
+    vw:hasAnnualIncomeBand vw:IncomeOver100k ;
+    vw:hasHouseholdType vw:CoupleHousehold ;
+    vw:householdSize 2 ;
+    vw:childrenInHousehold false ;
+    vw:livesInRegion vw:UrbanGermany ;
+    vw:hasInterest vw:Interest_PerformanceDriving ;
+    vw:usesVehicleFor vw:Use_WeekendDriving ;
+    vw:preferredVehicleType vw:Coupe ;
+    vw:preferredPowertrain vw:Petrol ;
+    vw:maxBudget "260000.00"^^xsd:decimal ;
+    vw:minimumSeats 2 ;
+    vw:hasHomeCharging false ;
+    vw:buyingStage vw:ComparingModels ;
+    vw:purchaseHorizon vw:MoreThanSixMonths ;
+    vw:hasPersonalizationConsent true .
+
+vw:Customer_004 a vw:Client, vw:PotentialCustomer, vw:IndividualCustomer ;
+    rdfs:label "Synthetic customer 004 - long-distance EV shopper" ;
+    vw:hasAgeBand vw:Age30To44 ;
+    vw:hasAnnualIncomeBand vw:Income60To100k ;
+    vw:hasHouseholdType vw:CoupleHousehold ;
+    vw:householdSize 2 ;
+    vw:childrenInHousehold false ;
+    vw:livesInRegion vw:PragueMetro ;
+    vw:hasInterest vw:Interest_EcoMobility, vw:Interest_LongDistance ;
+    vw:usesVehicleFor vw:Use_LongDistance ;
+    vw:preferredVehicleType vw:SUV ;
+    vw:preferredPowertrain vw:BatteryElectric ;
+    vw:maxBudget "75000.00"^^xsd:decimal ;
+    vw:minimumSeats 5 ;
+    vw:hasHomeCharging false ;
+    vw:buyingStage vw:ComparingModels ;
+    vw:purchaseHorizon vw:ThreeToSixMonths ;
+    vw:hasPersonalizationConsent true .
+
+# Synthetic B2B profile; no individual age, income, or household data are stored.
+vw:Customer_005 a vw:Client, vw:PotentialCustomer, vw:BusinessCustomer ;
+    rdfs:label "Synthetic customer 005 - logistics fleet" ;
+    vw:businessSector "Logistics" ;
+    vw:fleetSize 12 ;
+    vw:livesInRegion vw:UrbanGermany ;
+    vw:hasInterest vw:Interest_CommercialTransport ;
+    vw:usesVehicleFor vw:Use_FreightTransport ;
+    vw:preferredVehicleType vw:Truck ;
+    vw:preferredPowertrain vw:Diesel ;
+    vw:maxBudget "200000.00"^^xsd:decimal ;
+    vw:minimumSeats 2 ;
+    vw:buyingStage vw:ComparingModels ;
+    vw:purchaseHorizon vw:ThreeToSixMonths ;
+    vw:hasPersonalizationConsent true .
+
+# Illustrative product tags used for transparent preference matching.
+vw:Golf
+    vw:modelMatchesInterest vw:Interest_UrbanCommuting ;
+    vw:modelSupportsUse vw:Use_DailyCommuting .
+
+vw:ID4
+    vw:modelMatchesInterest vw:Interest_EcoMobility, vw:Interest_FamilyTravel,
+        vw:Interest_LongDistance ;
+    vw:modelSupportsUse vw:Use_FamilyTrips, vw:Use_LongDistance .
+
+vw:Passat
+    vw:modelMatchesInterest vw:Interest_FamilyTravel, vw:Interest_LongDistance ;
+    vw:modelSupportsUse vw:Use_FamilyTrips, vw:Use_LongDistance .
+
+vw:Octavia
+    vw:modelMatchesInterest vw:Interest_UrbanCommuting, vw:Interest_FamilyTravel ;
+    vw:modelSupportsUse vw:Use_DailyCommuting, vw:Use_FamilyTrips .
+
+vw:Enyaq
+    vw:modelMatchesInterest vw:Interest_EcoMobility, vw:Interest_FamilyTravel,
+        vw:Interest_LongDistance ;
+    vw:modelSupportsUse vw:Use_FamilyTrips, vw:Use_LongDistance .
+
+vw:911
+    vw:modelMatchesInterest vw:Interest_PerformanceDriving ;
+    vw:modelSupportsUse vw:Use_WeekendDriving .
+
+vw:Taycan
+    vw:modelMatchesInterest vw:Interest_PerformanceDriving, vw:Interest_EcoMobility ;
+    vw:modelSupportsUse vw:Use_WeekendDriving, vw:Use_LongDistance .
+
+vw:Cayenne
+    vw:modelMatchesInterest vw:Interest_FamilyTravel, vw:Interest_OutdoorAdventure ;
+    vw:modelSupportsUse vw:Use_FamilyTrips, vw:Use_OutdoorActivities .
+
+vw:A4
+    vw:modelMatchesInterest vw:Interest_UrbanCommuting, vw:Interest_LongDistance ;
+    vw:modelSupportsUse vw:Use_DailyCommuting, vw:Use_LongDistance .
+
+vw:Q5
+    vw:modelMatchesInterest vw:Interest_FamilyTravel, vw:Interest_OutdoorAdventure ;
+    vw:modelSupportsUse vw:Use_FamilyTrips, vw:Use_OutdoorActivities .
+
+vw:e-tron
+    vw:modelMatchesInterest vw:Interest_EcoMobility, vw:Interest_LongDistance ;
+    vw:modelSupportsUse vw:Use_LongDistance .
+
+vw:Urus
+    vw:modelMatchesInterest vw:Interest_PerformanceDriving, vw:Interest_OutdoorAdventure ;
+    vw:modelSupportsUse vw:Use_WeekendDriving, vw:Use_OutdoorActivities .
+
+vw:Huracan
+    vw:modelMatchesInterest vw:Interest_PerformanceDriving ;
+    vw:modelSupportsUse vw:Use_WeekendDriving .
+
+vw:RSeries
+    vw:modelMatchesInterest vw:Interest_CommercialTransport ;
+    vw:modelSupportsUse vw:Use_FreightTransport .
+
+vw:TGX
+    vw:modelMatchesInterest vw:Interest_CommercialTransport ;
+    vw:modelSupportsUse vw:Use_FreightTransport .
+

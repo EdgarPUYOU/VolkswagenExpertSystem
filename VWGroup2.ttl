@@ -1,0 +1,251 @@
+@prefix vw: <http://example.org/volkswagen/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Vehicle T-Box schema. Sales vocabulary is in VW_Sales.ttl.
+# Vehicle instance data is in VWGroup2_data.ttl; portfolio rules are in VW_rules.ttl.
+
+vw:VolkswagenOntology a owl:Ontology ;
+    rdfs:label "Volkswagen Group Expert System Ontology" .
+
+# T-Box: classes and RDFS schema
+
+# Classes
+vw:Organization a owl:Class .
+vw:Company a owl:Class ;
+    rdfs:subClassOf vw:Organization .
+
+vw:BrandGroup a owl:Class .
+
+vw:Brand a owl:Class ;
+    rdfs:subClassOf vw:Organization .
+
+vw:ProductionSite a owl:Class .
+vw:Offering a owl:Class .
+vw:Product a owl:Class ;
+    rdfs:subClassOf vw:Offering .
+
+vw:Model a owl:Class ;
+    rdfs:subClassOf vw:Product .
+
+# Vehicle Categories
+vw:Powertrain a owl:Class .
+vw:VehicleType a owl:Class .
+vw:EngineModel a owl:Class .
+vw:SeatModel a owl:Class ;
+    rdfs:subClassOf vw:Product .
+vw:SeatManufacturer a owl:Class ;
+    rdfs:subClassOf vw:Organization .
+
+vw:ElectricModel a owl:Class ;
+    rdfs:subClassOf vw:Model .
+vw:HybridModel a owl:Class ;
+    rdfs:subClassOf vw:Model .
+vw:CombustionModel a owl:Class ;
+    rdfs:subClassOf vw:Model .
+
+[] a owl:AllDisjointClasses ;
+   owl:members (
+      vw:ElectricModel
+      vw:HybridModel
+      vw:CombustionModel
+   ) .
+
+vw:BrandWithModels a owl:Class ;
+    owl:equivalentClass [
+        a owl:Class ;
+        owl:intersectionOf (
+            vw:Brand
+            [
+                a owl:Restriction ;
+                owl:onProperty vw:hasModel ;
+                owl:someValuesFrom vw:Model
+            ]
+        )
+    ] .
+
+vw:BrandWithElectricModels a owl:Class ;
+    owl:equivalentClass [
+        a owl:Class ;
+        owl:intersectionOf (
+            vw:Brand
+            [
+                a owl:Restriction ;
+                owl:onProperty vw:hasModel ;
+                owl:someValuesFrom vw:ElectricModel
+            ]
+        )
+    ] .
+
+vw:ModelsWithProductionSite a owl:Class ;
+    owl:equivalentClass [
+        a owl:Class ;
+        owl:intersectionOf (
+            vw:Model
+            [
+                a owl:Restriction ;
+                owl:onProperty vw:producedAt ;
+                owl:someValuesFrom vw:ProductionSite
+            ]
+        )
+    ] .
+
+# Object Properties
+
+vw:hasBrandGroup a owl:ObjectProperty ;
+    rdfs:domain vw:Company ;
+    rdfs:range vw:BrandGroup .
+
+vw:hasBrand a owl:ObjectProperty ;
+    rdfs:domain vw:BrandGroup ;
+    rdfs:range vw:Brand ;
+    owl:inverseOf vw:belongsToGroup .
+
+vw:belongsToGroup a owl:ObjectProperty ;
+    rdfs:domain vw:Brand ;
+    rdfs:range vw:BrandGroup ;
+    a owl:FunctionalProperty .
+
+vw:hasOffering a owl:ObjectProperty ;
+    rdfs:domain vw:Organization ;
+    rdfs:range vw:Offering .
+
+vw:hasProduct a owl:ObjectProperty ;
+    rdfs:subPropertyOf vw:hasOffering ;
+    rdfs:domain vw:Organization ;
+    rdfs:range vw:Product .
+
+vw:hasModel a owl:ObjectProperty ;
+    rdfs:subPropertyOf vw:hasProduct ;
+    rdfs:domain vw:Brand ;
+    rdfs:range vw:Model .
+
+vw:modelOf a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:Brand ;
+    owl:inverseOf vw:hasModel .
+
+vw:hasProductionSite a owl:ObjectProperty ;
+    rdfs:domain vw:Brand ;
+    rdfs:range vw:ProductionSite .
+
+vw:producedAt a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:ProductionSite .
+
+vw:groupHasModel a owl:ObjectProperty ;
+    rdfs:domain vw:BrandGroup ;
+    rdfs:range vw:Model .
+
+vw:brandHasModelAtSite a owl:ObjectProperty ;
+    rdfs:domain vw:Brand ;
+    rdfs:range vw:ProductionSite .
+
+vw:groupUsesSite a owl:ObjectProperty ;
+    rdfs:domain vw:BrandGroup ;
+    rdfs:range vw:ProductionSite .
+
+# Powertrain and Vehicle Type
+vw:hasPowertrain a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:Powertrain .
+
+vw:hasVehicleType a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:VehicleType .
+
+vw:hasEngineModel a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:EngineModel .
+
+vw:hasSeatModel a owl:ObjectProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range vw:SeatModel .
+
+vw:hasSeatManufacturer a owl:ObjectProperty ;
+    rdfs:domain vw:SeatModel ;
+    rdfs:range vw:SeatManufacturer .
+
+vw:seatProducedAt a owl:ObjectProperty ;
+    rdfs:domain vw:SeatModel ;
+    rdfs:range vw:ProductionSite .
+
+# Datatype Properties
+vw:headquarters a owl:DatatypeProperty ;
+    rdfs:domain vw:Company ;
+    rdfs:range rdfs:Literal .
+
+vw:locatedIn a owl:DatatypeProperty ;
+    rdfs:domain vw:ProductionSite ;
+    rdfs:range rdfs:Literal .
+
+vw:price a owl:DatatypeProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range xsd:decimal .
+
+vw:seatPrice a owl:DatatypeProperty ;
+    rdfs:domain vw:SeatModel ;
+    rdfs:range xsd:decimal .
+
+vw:carsProducedPerYear a owl:DatatypeProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range xsd:integer ;
+    rdfs:comment "Number of cars produced per year." .
+
+vw:customerAppreciationRating a owl:DatatypeProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Customer appreciation score on a 0-to-5 scale." .
+
+vw:seats a owl:DatatypeProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range xsd:integer .
+
+vw:rangeKm a owl:DatatypeProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range xsd:integer .
+
+vw:ElectricModel a owl:equivalentClass ;
+    owl:Class [
+        a owl:Class ;
+        owl:intersectionOf (
+            vw:Model
+            [
+                a owl:Restriction ;
+                owl:onProperty vw:hasPowertrain ;
+                owl:hasValue vw:BatteryElectric
+            ]
+        )
+    ] .
+
+vw:HybridModel a owl:equivalentClass ;
+    owl:Class [
+        a owl:Class ;
+        owl:intersectionOf (
+            vw:Model
+            [
+                a owl:Restriction ;
+                owl:onProperty vw:hasPowertrain ;
+                owl:hasValue vw:PlugInHybrid
+            ]
+        )
+    ] .
+
+vw:CombustionModel a owl:equivalentClass ;
+    owl:Class [
+        a owl:Class ;
+        owl:intersectionOf (
+            vw:Model
+            [
+                a owl:Restriction ;
+                owl:onProperty vw:hasPowertrain ;
+                owl:someValuesFrom[
+                    a owl:Class ;
+                    owl:oneOf(vw:Petrol vw:Diesel)
+                ]
+            ]
+        )
+    ] .
+

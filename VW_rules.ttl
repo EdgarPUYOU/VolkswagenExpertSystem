@@ -1,0 +1,129 @@
+@prefix vw:     <http://example.org/volkswagen/> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix swrl:   <http://www.w3.org/2003/11/swrl#> .
+@prefix swrla:  <http://www.w3.org/2003/11/swrl#> .
+@prefix swrlb:  <http://www.w3.org/2003/11/swrlb#> .
+
+
+
+# ============================================================
+# SWRL RULES FOR THE VOLKSWAGEN EXPERT SYSTEM
+# ============================================================
+
+# Variables
+# Each rule uses its own variable individuals.
+
+# ============================================================
+# USE CASE 1: PRODUCT PORTFOLIO ANALYSIS
+# ============================================================
+
+# Rule 1:
+# If a brand belongs to a brand group and has a model,
+# that model belongs to the brand group's portfolio.
+
+vw:Rule1 a swrl:Imp ;
+rdfs:label "Infer models belonging to a brand group" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:BrandGroup ;
+swrl:argument1 vw:group
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:hasBrand ;
+swrl:argument1 vw:group ;
+swrl:argument2 vw:brand
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:hasModel ;
+swrl:argument1 vw:brand ;
+swrl:argument2 vw:model
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:groupHasModel ;
+swrl:argument1 vw:group ;
+swrl:argument2 vw:model
+]
+) .
+
+# ============================================================
+# USE CASE 2: PRODUCTION-SITE ANALYSIS
+# ============================================================
+
+# Rule 2:
+# If a brand has a model and that model is produced at a site,
+# infer that the brand has a model at that site.
+
+vw:Rule2 a swrl:Imp ;
+rdfs:label "Identify brand models produced at a site" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:Brand ;
+swrl:argument1 vw:brand
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:hasModel ;
+swrl:argument1 vw:brand ;
+swrl:argument2 vw:model
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:producedAt ;
+swrl:argument1 vw:model ;
+swrl:argument2 vw:site
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:brandHasModelAtSite ;
+swrl:argument1 vw:brand ;
+swrl:argument2 vw:site
+]
+) .
+
+# Rule 3:
+# If a brand belongs to a brand group and has models produced
+# at a site, infer that the group uses that site.
+
+vw:Rule3 a swrl:Imp ;
+rdfs:label "Identify production sites used by brand groups" ;
+swrl:body (
+[
+a swrl:ClassAtom ;
+swrl:classPredicate vw:BrandGroup ;
+swrl:argument1 vw:group
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:hasBrand ;
+swrl:argument1 vw:group ;
+swrl:argument2 vw:brand
+]
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:brandHasModelAtSite ;
+swrl:argument1 vw:brand ;
+swrl:argument2 vw:site
+]
+) ;
+swrl:head (
+[
+a swrl:IndividualPropertyAtom ;
+swrl:propertyPredicate vw:groupUsesSite ;
+swrl:argument1 vw:group ;
+swrl:argument2 vw:site
+]
+) .
+
+# Sales and recommendation rules are in VW_sales_rules.ttl.
