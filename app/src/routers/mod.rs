@@ -26,6 +26,7 @@ pub struct AppState {
     pub kg: Arc<Kg>,
     pub db: Arc<Mutex<rusqlite::Connection>>,
     pub graphs: Arc<Vec<crate::kg::GraphStat>>,
+    pub llm: Arc<crate::config::LlmConfig>,
 }
 
 type ApiResult = Result<Json<Value>, (StatusCode, String)>;
@@ -273,8 +274,16 @@ async fn chat(State(s): State<AppState>, Json(req): Json<ChatRequest>) -> ApiRes
     Ok(Json(json!(chat::plan(&snap, &md, &sd, &req.message, &today()).map_err(fail)?)))
 }
 
-async fn chat_status() -> Json<Value> {
-    Json(json!({ "planner": "rules", "llm": false, "suggestions": chat::SUGGESTIONS }))
+async fn chat_status(State(s): State<AppState>) -> Json<Value> {
+    // `llm` stays false until the model planner exists; `llm_configured` only says a key was found
+    Json(json!({
+        "planner": "rules",
+        "llm": false,
+        "llm_configured": s.llm.has_key(),
+        "llm_model": s.llm.model,
+        "llm_base_url": s.llm.base_url,
+        "suggestions": chat::SUGGESTIONS,
+    }))
 }
 
 async fn chat_tools() -> Json<Value> {

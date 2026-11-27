@@ -66,6 +66,8 @@ async fn main() -> Result<()> {
         .json()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
+    // .env in the working directory or a parent (the repo root when run from app/); real environment variables win
+    let _ = dotenvy::dotenv();
     let cli = Cli::parse();
 
     match cli.command {
@@ -126,12 +128,14 @@ async fn main() -> Result<()> {
                 graphs = graphs.len(),
                 inferred = infer.inferred,
                 passes = infer.passes,
+                llm_key_set = config::LlmConfig::from_config(&cli.config).has_key(),
                 "startup complete"
             );
             let state = routers::AppState {
                 kg: Arc::new(kg),
                 db: Arc::new(Mutex::new(conn)),
                 graphs: Arc::new(graphs),
+                llm: Arc::new(config::LlmConfig::from_config(&cli.config)),
             };
             let listener = tokio::net::TcpListener::bind(&bind).await?;
             tracing::info!(%bind, "listening");

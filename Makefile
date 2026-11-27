@@ -1,12 +1,15 @@
 # Dev and prod entry points. Run `make help` for the list.
 .DEFAULT_GOAL := help
-.PHONY: help dev dev-api dev-web install web-build build prod prod-docker prod-docker-down graphdb seed test lint bench clean
+.PHONY: help env dev dev-api dev-web install web-build build prod prod-docker prod-docker-down graphdb seed test lint bench clean
 
 BIND ?= 0.0.0.0:8000
 BIN  := app/target/release/vw-erp
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+
+env: ## Create .env from .env.example if it does not exist (then edit it)
+	@test -f .env && echo '.env already exists' || (cp .env.example .env && echo 'created .env, fill in the values')
 
 install: ## Install web dependencies
 	cd web && npm install

@@ -26,6 +26,10 @@ services:
     build: .
     restart: unless-stopped
     user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
     expose:
       - "8000"
     volumes:

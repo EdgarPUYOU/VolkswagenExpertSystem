@@ -112,6 +112,13 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 - Contract dates, powertrains, seats and other classifications stay in the TTL.
 - Consequence: loading the TTL files alone (for example into dev GraphDB) no longer gives prices or volumes. Use the app (`vw-erp query`) or add an export of the facts graph if GraphDB browsing needs them.
 
+### Environment file (.env)
+
+- The app loads `.env` from the working directory or a parent (so `make dev-api` finds the one at the repo root); real environment variables win. `make env` copies `.env.example` to `.env`.
+- New settings: `ANTHROPIC_API_KEY` (optional), `ANTHROPIC_BASE_URL` (default `https://api.anthropic.com`, trailing slash trimmed, change it to use a gateway), `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`). An empty key counts as not set.
+- The key is held in a `Secret` type that prints as `Secret(***)`; startup logs only say whether a key is set. `/api/chat/status` reports `llm_configured`, `llm_model` and `llm_base_url`, never the key. `llm` stays false because the model planner is not written yet.
+- Docker: both compose files pass the three variables to the app; `.env` is in `.dockerignore` so the key is not baked into the image. 66 Rust tests.
+
 ### Chat bubble
 
 - "Ask the data" bubble on every page: answers with KPI tiles, tables, bar charts and links, keeps its history across pages and reloads, and its links can open the Scenario lab with the shocks filled in.
@@ -139,7 +146,7 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 
 ## Next
 
-1. **Connect a language model to the chat** (needs an API key and an HTTP client crate; plan.md section 2.8 lists the steps).
+1. **Connect a language model to the chat.** Settings and `.env` loading are done; still to write: the HTTP client call and the tool loop (plan.md section 2.8 steps 2 to 5).
 2. **Step 9**: deploy to the VPS (needs Docker verification first).
 3. Optional: load the same TTL and rules into dev GraphDB with a no-inference ruleset and compare triple counts with the app.
 4. Build the Budget vs actual page (budget and actuals tables are already seeded).
@@ -173,7 +180,7 @@ python3 tools/gen_supply_abox.py
 cd web && npm install && npm run dev
 
 # Tests and benchmark
-cd app && cargo test            # 64 tests, run from app/ (reads ../rules and the root TTL files)
+cd app && cargo test            # 66 tests, run from app/ (reads ../rules and the root TTL files)
 cd app && cargo run --release -- bench
 
 # Optional: GraphDB Workbench on http://localhost:7200
