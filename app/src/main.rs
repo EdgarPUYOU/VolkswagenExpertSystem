@@ -1,6 +1,7 @@
 mod bench;
 mod config;
 mod db;
+mod facts;
 mod kg;
 mod routers;
 mod seed;
@@ -52,6 +53,13 @@ enum Command {
     },
 }
 
+/// Open the SQLite file and apply migrations; the graph needs its numeric facts.
+fn ready_db(config: &Config) -> Result<rusqlite::Connection> {
+    let mut conn = db::open(&config.sqlite_path)?;
+    db::migrate(&mut conn)?;
+    Ok(conn)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -67,20 +75,21 @@ async fn main() -> Result<()> {
             println!("applied {n} migration(s)");
         }
         Command::LoadKg => {
-            let (kg, stats, infer) = kg::Kg::load(&cli.config.ontology_dir, &cli.config.rules_dir)?;
+            let conn = ready_db(&cli.config)?;
+            let (kg, stats, infer) = kg::Kg::load(&cli.config.ontology_dir, &cli.config.rules_dir, &conn)?;
             for s in &stats {
                 println!("{:<28} {:>6} triples  ->  {}", s.file, s.triples, s.graph);
             }
             println!("total: {} triples ({} passes to reach the rule fixpoint)", kg.len()?, infer.passes);
         }
         Command::Seed => {
-            let mut conn = db::open(&cli.config.sqlite_path)?;
-            db::migrate(&mut conn)?;
-            let (kg, _, _) = kg::Kg::load(&cli.config.ontology_dir, &cli.config.rules_dir)?;
+            let mut conn = ready_db(&cli.config)?;
+            let (kg, _, _) = kg::Kg::load(&cli.config.ontology_dir, &cli.config.rules_dir, &conn)?;
             println!("{:?}", seed::seed(&kg, &mut conn)?);
         }
         Command::Query { sparql } => {
-            let (kg, _, _) = kg::Kg::load(&cli.config.ontology_dir, &cli.config.rules_dir)?;
+            let conn = ready_db(&cli.config)?;
+            let (kg, _, _) = kg::Kg::load(&cli.config.ontology_dir, &cli.config.rules_dir, &conn)?;
             let rows = services::portfolio::run(&kg, &sparql)?;
             let cols: Vec<String> = rows.first().map(|r| r.keys().cloned().collect()).unwrap_or_default();
             println!("{}", cols.join("\t"));
@@ -107,7 +116,7 @@ async fn main() -> Result<()> {
         Command::Serve { bind } => {
             let mut conn = db::open(&cli.config.sqlite_path)?;
             let applied = db::migrate(&mut conn)?;
-            let (kg, graphs, infer) = kg::Kg::load(&cli.config.ontology_dir, &cli.config.rules_dir)?;
+            let (kg, graphs, infer) = kg::Kg::load(&cli.config.ontology_dir, &cli.config.rules_dir, &conn)?;
             if seed::needs_seed(&conn)? {
                 tracing::info!(stats = ?seed::seed(&kg, &mut conn)?, "seeded empty finance tables");
             }

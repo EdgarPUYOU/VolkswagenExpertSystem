@@ -55,7 +55,7 @@ mod tests {
     use std::path::Path;
 
     fn kg() -> Kg {
-        let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).expect("load"); kg
+        crate::kg::load_for_test().0
     }
 
     #[test]
@@ -93,7 +93,7 @@ mod inference_tests {
     use std::path::Path;
 
     fn kg() -> Kg {
-        Kg::load(Path::new(".."), Path::new("../rules")).expect("load").0
+        crate::kg::load_for_test().0
     }
 
     /// Run a two-column query and return "a -> b" pairs with IRIs shortened.
@@ -116,7 +116,9 @@ mod inference_tests {
 
     #[test]
     fn reaches_a_fixpoint_and_is_idempotent() {
-        let (kg, _, first) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::db::migrate(&mut conn).unwrap();
+        let (kg, _, first) = Kg::load(Path::new(".."), Path::new("../rules"), &conn).unwrap();
         assert!(first.inferred > 0);
         let before = kg.len().unwrap();
         let again = kg.infer(Path::new("../rules")).unwrap();

@@ -331,12 +331,9 @@ pub fn financing_comparison(snap: &Snapshot, md: &MarketData, sd: &SalesData, mo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     fn load() -> (Snapshot, MarketData, SalesData) {
-        let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
-        let mut conn = Connection::open_in_memory().unwrap();
-        crate::db::migrate(&mut conn).unwrap();
+        let (kg, mut conn) = crate::kg::load_for_test();
         crate::seed::seed(&kg, &mut conn).unwrap();
         (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap(), SalesData::load(&kg, &conn).unwrap())
     }

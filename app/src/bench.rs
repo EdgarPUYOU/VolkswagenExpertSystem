@@ -18,7 +18,10 @@ fn rss_mb() -> f64 {
 pub fn run(config: &Config, iterations: usize) -> Result<()> {
     let rss_before = rss_mb();
     let t = Instant::now();
-    let (kg, stats) = Kg::load_dir(&config.ontology_dir)?;
+    let mut conn = rusqlite::Connection::open_in_memory()?;
+    crate::db::migrate(&mut conn)?;
+    let (kg, mut stats) = Kg::load_dir(&config.ontology_dir)?;
+    stats.push(kg.add_facts(&crate::facts::from_db(&kg, &conn)?)?);
     let load = t.elapsed();
     let t = Instant::now();
     let infer = kg.infer(&config.rules_dir)?;

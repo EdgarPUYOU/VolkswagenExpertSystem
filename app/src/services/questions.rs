@@ -630,12 +630,9 @@ mod tests {
     use super::*;
     use crate::kg::Kg;
     use std::collections::BTreeSet;
-    use std::path::Path;
 
     fn setup() -> (Kg, rusqlite::Connection) {
-        let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
-        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
-        crate::db::migrate(&mut conn).unwrap();
+        let (kg, mut conn) = crate::kg::load_for_test();
         crate::seed::seed(&kg, &mut conn).unwrap();
         (kg, conn)
     }

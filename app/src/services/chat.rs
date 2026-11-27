@@ -1247,17 +1247,13 @@ pub fn plan(snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, tod
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kg::Kg;
-    use std::path::Path;
 
     const TODAY: &str = "2026-11-27";
 
     type World = (Snapshot, MarketData, SalesData);
 
     fn snap() -> World {
-        let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
-        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
-        crate::db::migrate(&mut conn).unwrap();
+        let (kg, mut conn) = crate::kg::load_for_test();
         crate::seed::seed(&kg, &mut conn).unwrap();
         (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap(), SalesData::load(&kg, &conn).unwrap())
     }

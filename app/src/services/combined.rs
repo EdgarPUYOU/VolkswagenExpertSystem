@@ -201,14 +201,9 @@ pub fn run_combined(snap: &Snapshot, md: &MarketData, req: &CombinedRequest) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kg::Kg;
-    use rusqlite::Connection;
-    use std::path::Path;
 
     fn load() -> (Snapshot, MarketData) {
-        let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
-        let mut conn = Connection::open_in_memory().unwrap();
-        crate::db::migrate(&mut conn).unwrap();
+        let (kg, mut conn) = crate::kg::load_for_test();
         crate::seed::seed(&kg, &mut conn).unwrap();
         (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap())
     }

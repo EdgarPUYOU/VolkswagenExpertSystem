@@ -589,12 +589,9 @@ pub fn mix_analysis(snap: &Snapshot, md: &MarketData, shift_pct: f64) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     fn load() -> (Snapshot, MarketData) {
-        let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
-        let mut conn = Connection::open_in_memory().unwrap();
-        crate::db::migrate(&mut conn).unwrap();
+        let (kg, mut conn) = crate::kg::load_for_test();
         crate::seed::seed(&kg, &mut conn).unwrap();
         (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap())
     }
@@ -605,7 +602,7 @@ mod tests {
 
     #[test]
     fn rules_flag_subsidy_dependent_models_and_co2_risk_cars() {
-        let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
+        let (kg, _) = crate::kg::load_for_test();
         let rows = run(&kg, "SELECT ?m WHERE { ?m a vw:SubsidyDependentModel }").unwrap();
         assert_eq!(rows.len(), 4, "the four electric models are sold in Germany or France");
         let risk = run(&kg, "SELECT ?m WHERE { ?m a vw:CO2PenaltyRiskModel }").unwrap();

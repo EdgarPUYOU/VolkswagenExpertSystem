@@ -3,7 +3,7 @@
 
 use anyhow::{Context, Result};
 use oxigraph::io::{RdfFormat, RdfParser};
-use oxigraph::model::{GraphNameRef, NamedNode, Term};
+use oxigraph::model::{GraphNameRef, Literal, NamedNode, Quad, Term};
 use oxigraph::sparql::{QueryResults, SparqlEvaluator};
 use oxigraph::store::Store;
 use serde::Serialize;
@@ -14,11 +14,23 @@ use std::path::Path;
 
 pub const GRAPH_BASE: &str = "http://example.org/volkswagen/graph/";
 /// Named graph that receives every triple derived by the rules.
+/// Named graph that receives the numeric facts written from SQLite.
+pub const FACTS_GRAPH: &str = "http://example.org/volkswagen/graph/erp-facts";
 pub const INFERRED_GRAPH: &str = "http://example.org/volkswagen/graph/inferred";
 /// Upper bound on fixpoint passes; hitting it means a rule keeps producing new triples.
 const MAX_PASSES: usize = 25;
 
 pub type Row = BTreeMap<String, String>;
+
+/// One numeric fact to write into the graph: `subject vw:predicate "value"^^datatype`.
+#[derive(Debug, Clone)]
+pub struct Fact {
+    pub subject: String,
+    /// Local name in the `vw:` namespace
+    pub predicate: String,
+    pub value: String,
+    pub datatype: &'static str,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GraphStat {
@@ -75,9 +87,27 @@ impl Kg {
         Ok((Kg { store }, stats))
     }
 
-    /// Load the TTL files, then run the rules. The inferred graph is appended to the stats.
-    pub fn load(ontology_dir: &Path, rules_dir: &Path) -> Result<(Kg, Vec<GraphStat>, InferStats)> {
+    /// Write numeric facts (from SQLite) into their own named graph.
+    pub fn add_facts(&self, facts: &[Fact]) -> Result<GraphStat> {
+        let graph = NamedNode::new(FACTS_GRAPH)?;
+        for f in facts {
+            let quad = Quad::new(
+                NamedNode::new(&f.subject)?,
+                NamedNode::new(format!("http://example.org/volkswagen/{}", f.predicate))?,
+                Literal::new_typed_literal(&f.value, NamedNode::new(f.datatype)?),
+                graph.clone(),
+            );
+            self.store.insert(&quad)?;
+        }
+        let triples = self.store.quads_for_pattern(None, None, None, Some(GraphNameRef::NamedNode(graph.as_ref()))).count();
+        Ok(GraphStat { graph: FACTS_GRAPH.to_string(), file: "(SQLite facts)".to_string(), triples })
+    }
+
+    /// Load the TTL files, add the numeric facts from SQLite, then run the rules.
+    /// The inferred graph is appended to the stats.
+    pub fn load(ontology_dir: &Path, rules_dir: &Path, conn: &rusqlite::Connection) -> Result<(Kg, Vec<GraphStat>, InferStats)> {
         let (kg, mut stats) = Kg::load_dir(ontology_dir)?;
+        stats.push(kg.add_facts(&crate::facts::from_db(&kg, conn)?)?);
         let infer = kg.infer(rules_dir)?;
         stats.push(GraphStat {
             graph: INFERRED_GRAPH.to_string(),
@@ -166,4 +196,13 @@ fn term_value(term: &Term) -> String {
         Term::BlankNode(b) => format!("_:{}", b.as_str()),
         Term::Literal(l) => l.value().to_string(),
     }
+}
+
+/// Test helper: an in-memory database with all migrations applied and a graph built from it.
+#[cfg(test)]
+pub fn load_for_test() -> (Kg, rusqlite::Connection) {
+    let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+    crate::db::migrate(&mut conn).unwrap();
+    let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules"), &conn).unwrap();
+    (kg, conn)
 }
