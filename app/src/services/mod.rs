@@ -6,3 +6,4 @@ pub mod questions;
 pub mod market;
 pub mod sales;
 pub mod combined;
+pub mod llm;

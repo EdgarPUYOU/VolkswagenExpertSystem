@@ -63,7 +63,8 @@ export function ChatBubble() {
     setMessages((m) => [...m, { role: 'user', text: message }])
     setBusy(true)
     try {
-      const reply = await api.chat(message)
+      const history = messages.filter((m) => !m.error).slice(-8).map((m) => ({ role: m.role, content: m.text }))
+      const reply = await api.chat(message, history)
       setMessages((m) => [...m, { role: 'assistant', text: reply.text, blocks: reply.blocks, toolCalls: reply.tool_calls }])
     } catch (e) {
       setMessages((m) => [...m, { role: 'assistant', text: e instanceof Error ? e.message : 'Something went wrong.', error: true }])

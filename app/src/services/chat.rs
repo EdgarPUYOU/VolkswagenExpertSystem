@@ -78,13 +78,20 @@ pub struct Reply {
     pub planner: &'static str,
 }
 
+/// One earlier turn of the conversation, sent back by the client so the model keeps context.
+#[derive(Deserialize, Debug, Clone)]
+pub struct Turn {
+    /// "user" or "assistant"
+    pub role: String,
+    pub content: String,
+}
+
 #[derive(Deserialize, Debug, Default)]
 pub struct ChatRequest {
     pub message: String,
-    /// Earlier turns, kept for an LLM planner; the rule-based planner ignores them.
+    /// Earlier turns for the language model; the rule-based planner ignores them.
     #[serde(default)]
-    #[allow(dead_code)]
-    pub history: Vec<Value>,
+    pub history: Vec<Turn>,
 }
 
 // ---------------------------------------------------------------- formatting

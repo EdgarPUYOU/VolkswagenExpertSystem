@@ -131,11 +131,13 @@ async fn main() -> Result<()> {
                 llm_key_set = config::LlmConfig::from_config(&cli.config).has_key(),
                 "startup complete"
             );
+            let llm_cfg = config::LlmConfig::from_config(&cli.config);
             let state = routers::AppState {
                 kg: Arc::new(kg),
                 db: Arc::new(Mutex::new(conn)),
                 graphs: Arc::new(graphs),
-                llm: Arc::new(config::LlmConfig::from_config(&cli.config)),
+                llm: Arc::new(llm_cfg.clone()),
+                backend: services::llm::SdkBackend::new(&llm_cfg).map(Arc::new),
             };
             let listener = tokio::net::TcpListener::bind(&bind).await?;
             tracing::info!(%bind, "listening");

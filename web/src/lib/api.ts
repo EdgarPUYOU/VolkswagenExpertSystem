@@ -530,11 +530,11 @@ export const api = {
   savedCombinedRun: (id: number) =>
     get<{ id: number; name: string; created_at: string; request: CombinedRequest; result: CombinedResult }>(`/api/scenarios/combined/${id}`),
   savedScenarios: () => get<SavedScenario[]>('/api/scenarios'),
-  chat: (message: string) =>
+  chat: (message: string, history: { role: 'user' | 'assistant'; content: string }[] = []) =>
     request<ChatReply>('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, history }),
     }),
   chatStatus: () => get<ChatStatus>('/api/chat/status'),
   savedScenario: (id: number) => get<{ id: number; name: string; result: ScenarioResult }>(`/api/scenarios/${id}`),

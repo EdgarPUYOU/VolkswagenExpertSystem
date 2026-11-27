@@ -4,6 +4,7 @@ use crate::{
     services::{
         chat::{self, ChatRequest},
         combined::{self, CombinedRequest},
+        llm::{self, SdkBackend},
         finance::{self, BadRequest, ScenarioRequest, Snapshot},
         market::{self, MarketData},
         portfolio, questions,
@@ -27,6 +28,8 @@ pub struct AppState {
     pub db: Arc<Mutex<rusqlite::Connection>>,
     pub graphs: Arc<Vec<crate::kg::GraphStat>>,
     pub llm: Arc<crate::config::LlmConfig>,
+    /// Present only when an API key is configured.
+    pub backend: Option<Arc<SdkBackend>>,
 }
 
 type ApiResult = Result<Json<Value>, (StatusCode, String)>;
@@ -271,15 +274,24 @@ async fn dashboard(State(s): State<AppState>) -> ApiResult {
 
 async fn chat(State(s): State<AppState>, Json(req): Json<ChatRequest>) -> ApiResult {
     let (snap, md, sd) = sales_ctx(&s).map_err(fail)?;
+    if let Some(backend) = &s.backend {
+        let cx = llm::Ctx { snap: &snap, md: &md, sd: &sd };
+        match llm::answer(backend, &s.llm, &cx, &req.message, &req.history, &today()).await {
+            Ok(reply) => return Ok(Json(json!(reply))),
+            Err(e) => tracing::warn!(error = %format!("{e:#}"), "model call failed, using the rule planner"),
+        }
+        let mut reply = chat::plan(&snap, &md, &sd, &req.message, &today()).map_err(fail)?;
+        reply.text = format!("The language model could not be reached, so this answer comes from keyword matching. {}", reply.text);
+        return Ok(Json(json!(reply)));
+    }
     Ok(Json(json!(chat::plan(&snap, &md, &sd, &req.message, &today()).map_err(fail)?)))
 }
 
 async fn chat_status(State(s): State<AppState>) -> Json<Value> {
-    // `llm` stays false until the model planner exists; `llm_configured` only says a key was found
+    let llm = s.backend.is_some();
     Json(json!({
-        "planner": "rules",
-        "llm": false,
-        "llm_configured": s.llm.has_key(),
+        "planner": if llm { "llm" } else { "rules" },
+        "llm": llm,
         "llm_model": s.llm.model,
         "llm_base_url": s.llm.base_url,
         "suggestions": chat::SUGGESTIONS,

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.105"
+async-openai = { version = "0.43.0", features = ["chat-completion", "byot"] }
 axum = "0.8.9"
 chrono = { version = "0.4.45", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.6.10", features = ["derive", "env"] }

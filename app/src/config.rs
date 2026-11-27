@@ -40,17 +40,17 @@ pub struct Config {
     #[arg(long, env = "SQLITE_PATH", default_value = "../data/erp.db")]
     pub sqlite_path: PathBuf,
 
-    /// API key for the language model behind the chat. Leave unset to use the rule-based planner only.
-    #[arg(long, env = "ANTHROPIC_API_KEY", hide_env_values = true)]
-    pub anthropic_api_key: Option<Secret>,
+    /// API key for the language model behind the chat (any OpenAI-compatible API; DeepSeek by default). Leave unset to use the rule-based planner only.
+    #[arg(long, env = "LLM_API_KEY", hide_env_values = true)]
+    pub llm_api_key: Option<Secret>,
 
-    /// Base URL of the model API (no trailing slash needed).
-    #[arg(long, env = "ANTHROPIC_BASE_URL", default_value = "https://api.anthropic.com")]
-    pub anthropic_base_url: String,
+    /// Base URL of the OpenAI-compatible API (no trailing slash needed).
+    #[arg(long, env = "LLM_BASE_URL", default_value = "https://api.deepseek.com")]
+    pub llm_base_url: String,
 
     /// Model the chat asks for.
-    #[arg(long, env = "ANTHROPIC_MODEL", default_value = "claude-sonnet-5-5")]
-    pub anthropic_model: String,
+    #[arg(long, env = "LLM_MODEL", default_value = "deepseek-chat")]
+    pub llm_model: String,
 }
 
 /// What the HTTP layer needs to talk to the model. The key stays on the server.
@@ -65,9 +65,9 @@ impl LlmConfig {
     pub fn from_config(c: &Config) -> LlmConfig {
         LlmConfig {
             // an empty value in .env means "not set"
-            api_key: c.anthropic_api_key.clone().filter(|k| !k.expose().is_empty()),
-            base_url: c.anthropic_base_url.trim().trim_end_matches('/').to_string(),
-            model: c.anthropic_model.trim().to_string(),
+            api_key: c.llm_api_key.clone().filter(|k| !k.expose().is_empty()),
+            base_url: c.llm_base_url.trim().trim_end_matches('/').to_string(),
+            model: c.llm_model.trim().to_string(),
         }
     }
 
@@ -85,9 +85,9 @@ mod tests {
             ontology_dir: "..".into(),
             rules_dir: "../rules".into(),
             sqlite_path: "x.db".into(),
-            anthropic_api_key: key.map(|k| k.parse().unwrap()),
-            anthropic_base_url: url.into(),
-            anthropic_model: " claude-sonnet-5-5 ".into(),
+            llm_api_key: key.map(|k| k.parse().unwrap()),
+            llm_base_url: url.into(),
+            llm_model: " deepseek-chat ".into(),
         }
     }
 
@@ -95,7 +95,7 @@ mod tests {
     fn empty_key_means_not_configured_and_url_is_normalised() {
         let l = LlmConfig::from_config(&config(Some("  "), "https://example.test/ "));
         assert!(!l.has_key());
-        assert_eq!((l.base_url.as_str(), l.model.as_str()), ("https://example.test", "claude-sonnet-5-5"));
+        assert_eq!((l.base_url.as_str(), l.model.as_str()), ("https://example.test", "deepseek-chat"));
         assert!(LlmConfig::from_config(&config(Some("sk-abc"), "https://x")).has_key());
         assert!(!LlmConfig::from_config(&config(None, "https://x")).has_key());
     }

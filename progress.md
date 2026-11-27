@@ -115,15 +115,21 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 ### Environment file (.env)
 
 - The app loads `.env` from the working directory or a parent (so `make dev-api` finds the one at the repo root); real environment variables win. `make env` copies `.env.example` to `.env`.
-- New settings: `ANTHROPIC_API_KEY` (optional), `ANTHROPIC_BASE_URL` (default `https://api.anthropic.com`, trailing slash trimmed, change it to use a gateway), `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`). An empty key counts as not set.
-- The key is held in a `Secret` type that prints as `Secret(***)`; startup logs only say whether a key is set. `/api/chat/status` reports `llm_configured`, `llm_model` and `llm_base_url`, never the key. `llm` stays false because the model planner is not written yet.
-- Docker: both compose files pass the three variables to the app; `.env` is in `.dockerignore` so the key is not baked into the image. 66 Rust tests.
+- Settings (provider-neutral, any OpenAI-compatible API): `LLM_API_KEY` (optional), `LLM_BASE_URL` (default `https://api.deepseek.com`, trailing slash trimmed), `LLM_MODEL` (default `deepseek-chat`; `deepseek-reasoner` may not support tool calls). An empty key counts as not set.
+- The key is held in a `Secret` type that prints as `Secret(***)`; logs only say whether a key is set; the API never returns it. Both compose files pass the variables through and `.env` is in `.dockerignore`.
+
+### Language-model chat (DeepSeek through the OpenAI SDK)
+
+- `services/llm.rs` uses the `async-openai` crate (community Rust SDK, "bring your own types" mode so provider quirks cannot break strict typing) against `LLM_BASE_URL`. The model gets the 20 chat tools in function-calling format, calls them, and writes the answer from each tool's summary plus trimmed JSON (8,000 characters). It never sees SQL, SPARQL or the raw database. Up to 6 model calls per question, 60 s timeout per call, the last 8 turns of history are sent (the bubble now sends them).
+- A tool error (bad argument, unknown name) goes back to the model as an error result so it can retry. Only successful tool calls are reported and only their blocks are drawn.
+- With no key the rule-based planner answers, as before. With a key but a failed call (down, 401, timeout, empty answer, tool loop) the rule planner answers and the text starts with a note that the model could not be reached. `/api/chat/status` reports `planner` (`llm` or `rules`), `llm`, model and base URL.
+- Tests (74 in total): a scripted backend covers the tool loop, error recovery, history trimming, loop cap and empty answers; a local HTTP stub checks the SDK posts to `/chat/completions` on the configured base URL with the Bearer key and that API errors do not leak the key. Also run end to end against a mock OpenAI-compatible server with the real binary. Not run against the real DeepSeek API (no key here).
 
 ### Chat bubble
 
 - "Ask the data" bubble on every page: answers with KPI tiles, tables, bar charts and links, keeps its history across pages and reloads, and its links can open the Scenario lab with the shocks filled in.
 - Backend: 11 tools (the question services plus `list_entities`) with JSON schemas, and a rule-based planner that works without any API key. Endpoints: `POST /api/chat`, `GET /api/chat/status`, `GET /api/chat/tools`, `POST /api/chat/tools/{name}`.
-- No language model is connected yet. The tools are already in the Anthropic tool format, so adding one means replacing the planner (steps in plan.md section 2.8).
+- A language model (DeepSeek through the OpenAI SDK) answers when `LLM_API_KEY` is set; otherwise the rule-based planner does. See the language-model section below.
 - 43 Rust tests pass in total.
 
 ### Findings
@@ -146,7 +152,7 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 
 ## Next
 
-1. **Connect a language model to the chat.** Settings and `.env` loading are done; still to write: the HTTP client call and the tool loop (plan.md section 2.8 steps 2 to 5).
+1. **Try the language model chat with a real `LLM_API_KEY`** (tested only against a mock server): check answer quality, tool choice and cost per question on DeepSeek.
 2. **Step 9**: deploy to the VPS (needs Docker verification first).
 3. Optional: load the same TTL and rules into dev GraphDB with a no-inference ruleset and compare triple counts with the app.
 4. Build the Budget vs actual page (budget and actuals tables are already seeded).
@@ -180,7 +186,7 @@ python3 tools/gen_supply_abox.py
 cd web && npm install && npm run dev
 
 # Tests and benchmark
-cd app && cargo test            # 66 tests, run from app/ (reads ../rules and the root TTL files)
+cd app && cargo test            # 74 tests, run from app/ (reads ../rules and the root TTL files)
 cd app && cargo run --release -- bench
 
 # Optional: GraphDB Workbench on http://localhost:7200
