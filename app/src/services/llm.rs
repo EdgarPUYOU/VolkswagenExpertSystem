@@ -68,18 +68,30 @@ pub trait ChatBackend: Sync {
 
 pub struct SdkBackend {
     client: Client<OpenAIConfig>,
+    reasoning_effort: Option<String>,
 }
 
 impl SdkBackend {
     pub fn new(cfg: &LlmConfig) -> Option<SdkBackend> {
         let key = cfg.api_key.as_ref().filter(|k| !k.expose().is_empty())?;
         let config = OpenAIConfig::new().with_api_key(key.expose()).with_api_base(&cfg.base_url);
-        Some(SdkBackend { client: Client::with_config(config) })
+        Some(SdkBackend { client: Client::with_config(config), reasoning_effort: cfg.reasoning_effort.clone() })
+    }
+}
+
+impl SdkBackend {
+    /// Adds the provider-specific `reasoning_effort` when one is configured.
+    fn prepare(&self, mut body: Value) -> Value {
+        if let Some(effort) = &self.reasoning_effort {
+            body["reasoning_effort"] = json!(effort);
+        }
+        body
     }
 }
 
 impl ChatBackend for SdkBackend {
     async fn complete(&self, body: Value) -> Result<Value> {
+        let body = self.prepare(body);
         let chat = self.client.chat();
         match tokio::time::timeout(CALL_TIMEOUT, chat.create_byot::<Value, Value>(body)).await {
             Ok(Ok(v)) => Ok(v),
@@ -89,7 +101,8 @@ impl ChatBackend for SdkBackend {
         }
     }
 
-    async fn complete_stream(&self, mut body: Value, on_text: OnText<'_>) -> Result<Value> {
+    async fn complete_stream(&self, body: Value, on_text: OnText<'_>) -> Result<Value> {
+        let mut body = self.prepare(body);
         body["stream"] = json!(true);
         let chat = self.client.chat();
         let mut stream = match tokio::time::timeout(CALL_TIMEOUT, chat.create_stream_byot::<Value, Value>(body)).await {
@@ -456,7 +469,7 @@ mod tests {
     }
 
     fn cfg(base: &str, key: &str) -> LlmConfig {
-        LlmConfig { api_key: key.parse().ok(), base_url: base.into(), model: "deepseek-chat".into() }
+        LlmConfig { api_key: key.parse().ok(), base_url: base.into(), model: "deepseek-chat".into(), reasoning_effort: None }
     }
 
     #[tokio::test]

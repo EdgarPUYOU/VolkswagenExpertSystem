@@ -30,6 +30,7 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
       AI_BASE_URL: ${AI_BASE_URL:-https://ai.sumopod.com/v1}
       AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      AI_REASONING_EFFORT: ${AI_REASONING_EFFORT:-}
     expose:
       - "8000"
     volumes:

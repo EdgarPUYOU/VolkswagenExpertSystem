@@ -51,6 +51,10 @@ pub struct Config {
     /// Model the chat asks for.
     #[arg(long, env = "AI_MODEL", default_value = "gpt-4o-mini")]
     pub llm_model: String,
+
+    /// Sent as `reasoning_effort` when set (for example `none`). Some reasoning models refuse function tools unless it is `none`; leave it unset for models that do not take the parameter.
+    #[arg(long, env = "AI_REASONING_EFFORT")]
+    pub llm_reasoning_effort: Option<String>,
 }
 
 /// What the HTTP layer needs to talk to the model. The key stays on the server.
@@ -59,6 +63,7 @@ pub struct LlmConfig {
     pub api_key: Option<Secret>,
     pub base_url: String,
     pub model: String,
+    pub reasoning_effort: Option<String>,
 }
 
 /// A host-only URL (`https://host`) gets `/v1`, which is where OpenAI-compatible APIs serve `/chat/completions`.
@@ -76,6 +81,7 @@ impl LlmConfig {
             api_key: c.llm_api_key.clone().filter(|k| !k.expose().is_empty()),
             base_url: normalise_base_url(&c.llm_base_url),
             model: c.llm_model.trim().to_string(),
+            reasoning_effort: c.llm_reasoning_effort.as_deref().map(str::trim).filter(|v| !v.is_empty()).map(str::to_string),
         }
     }
 
@@ -96,6 +102,7 @@ mod tests {
             llm_api_key: key.map(|k| k.parse().unwrap()),
             llm_base_url: url.into(),
             llm_model: " deepseek-chat ".into(),
+            llm_reasoning_effort: Some(" none ".into()),
         }
     }
 
@@ -104,6 +111,7 @@ mod tests {
         let l = LlmConfig::from_config(&config(Some("  "), "https://example.test/ "));
         assert!(!l.has_key());
         assert_eq!((l.base_url.as_str(), l.model.as_str()), ("https://example.test/v1", "deepseek-chat"));
+        assert_eq!(l.reasoning_effort.as_deref(), Some("none"));
         assert_eq!(normalise_base_url("https://api.example.test/v1/"), "https://api.example.test/v1");
         assert_eq!(normalise_base_url("https://api.example.test/openai"), "https://api.example.test/openai");
         assert!(LlmConfig::from_config(&config(Some("sk-abc"), "https://x")).has_key());
