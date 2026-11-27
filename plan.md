@@ -301,7 +301,7 @@ A test suite with at least one test per question. Implemented as Rust tests on t
 3. **Rust and web skeleton.** `axum` app with config, `/health`, `load-kg` and `migrate` subcommands, SQLite and Oxigraph adapters. `web/` app with shadcn/ui set up, an app shell (sidebar, routing) and one page calling `/api`. Multi-stage Dockerfile, dev and prod compose files, Caddyfile.
 4. **Finance and contract terms** (ABox/TBox, SQLite migrations, seed) plus services and pages for Q1 to Q9 and Q19. **Done (section 12).**
 5. **Market, regulation and competitors.** Covers Q10 to Q14. **Done (section 12).**
-6. **Sales, campaigns and financing.** Covers Q15 to Q17.
+6. **Sales, campaigns and financing.** Covers Q15 to Q17. **Done (section 12).**
 7. **Scenarios.** Covers Q18 and the saved scenario runs.
 8. **Move numeric facts** (price, planned production, contract volumes and prices) out of the TTL into SQLite.
 9. **Deploy to the VPS** (can happen earlier, after step 4, to demo online).
@@ -370,6 +370,8 @@ Done:
   - Headline results on the illustrative data: rubber +15% costs about EUR 101M a year (Golf margin falls 0.16 points); steel +10% with aluminium +8% pushes exactly Scania R-series, MAN TGX, ID.4 and Enyaq under a 15% margin; 39% of material spend is in SEK or CZK; 8 contracts expire within 12 months and 5 of those are also under-committed; doubling the battery supplier's lead time moves the ID.4 launch from 2027-03-15 to 2027-07-13 and touches one high-intent lead; Golf's margin fell 0.56 points in 6 months, mostly from natural rubber (+EUR 45 per car) and the krona-linked contracts.
 
 - **Step 5, market and regulation (Q10 to Q14).** `VW_Market_*` TTL, `rules/50_market.ru`, migration 003 (`sales_plan`, `competitor_prices`), `services/market.rs`, `/api/strategy/*`, UI page "Markets and regulation", 7 tests (50 in total). Elasticities are request inputs (defaults 1.5 and 0.8); CO2 target (120 g/km, EUR 95 per g/km) is illustrative. Chat tools added (16 in total). `Makefile` added for dev and prod start.
+
+- **Step 6, sales (Q15 to Q17).** `VW_Campaign_*` TTL, migration 004, `services/sales.rs`, `/api/sales/*`, page "Sales and leads", 3 chat tools (19 in total), 57 tests. Financing is modelled for the Taycan in the Czech market only; all rates are illustrative.
 
 - **Chat bubble (section 2.8).** 11 tools, a rule-based planner, `/api/chat*` endpoints and the bubble UI. 14 new Rust tests (43 in total) cover the tool catalogue, every tool with sample arguments, bad input (400), and about 40 phrasings, including mixed rises and falls, currency moves, month counts and model names. Checked in a browser: suggestions, typed questions, charts and tables in the conversation, a link that opens the Scenario lab with the shocks filled in, and history that survives a reload. No language model is connected yet.
 

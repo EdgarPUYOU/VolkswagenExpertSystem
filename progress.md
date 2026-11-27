@@ -13,7 +13,7 @@ The full design is in [plan.md](plan.md). This file tracks what is done and what
 | 3. Rust and web skeleton | Done, except Docker verification |
 | 4. Finance and contract terms (Q1 to Q9, Q19) | Done: data, rules, API, UI, tests |
 | 5. Market, regulation, competitors (Q10 to Q14) | Done: data, rules, API, UI, tests |
-| 6. Sales, campaigns, financing (Q15 to Q17) | Not started |
+| 6. Sales, campaigns, financing (Q15 to Q17) | Done: data, API, UI, chat tools, tests |
 | 7. Scenarios (Q18) | Not started |
 | 8. Move numeric facts out of the TTL | Not started |
 | 9. Deploy to the VPS | Not started |
@@ -84,6 +84,16 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 - Chat: 5 new tools (`subsidy_removal`, `co2_fleet`, `competitor_price_cut`, `site_dependency`, `powertrain_mix`; 16 in total), `list_entities` also lists markets and competitors, planner rules and 5 new suggestions. `call_tool` and `plan` now take `MarketData`. 52 Rust tests.
 - `Makefile` added: `make dev`, `make prod`, `make prod-docker`, `make test` and more (`make help`).
 
+### Step 6: Sales, campaigns, financing (Q15 to Q17)
+
+- New TTL: `VW_Campaign_Tbox/Abox` (6 incentive campaigns, 4 Taycan financing products: lease 36 and 48 months, loan 48 and 60 months, offered in the Czech market). Taycan is now also sold in the Czech Republic (market data), so unit splits changed slightly.
+- SQLite migration 004: `campaign_spend`, `model_capacity`, `financing_terms`; the seed fills them (capacity is planned production times a factor, 1.0 for ID.4 and Taycan).
+- `services/sales.rs`: Q15 lead pressure (margin within a buffer of the floor, or fell 0.3 points over the look-back window), Q16 campaign spend wasted on models without headroom, Q17 lease versus loan profit per contract.
+- API: `/api/sales/{leads,campaigns,financing}`. UI: "Sales and leads" page (built by a subagent against a fixed contract, then checked live). Chat: 3 new tools (19 in total) and suggestions.
+- 57 Rust tests; clippy clean.
+- Headline results (illustrative): both high-intent leads (Customer 001, Enyaq and ID.4) sit on models near the 15% floor and down about 1.1 points in 6 months; EUR 35.5M of EUR 83M campaign spend goes to extra cars that cannot be built (ID.4, Taycan fully, Enyaq partly); the Taycan 60-month loan earns EUR 5.7K per contract, EUR 840 more than the best lease.
+- Assumptions: loan interest is charged on 55% of the principal on average; lease finance charge is on the average of price and residual; vehicle margin is the same either way; rates, capacities and campaign effects are made up.
+
 ### Chat bubble
 
 - "Ask the data" bubble on every page: answers with KPI tiles, tables, bar charts and links, keeps its history across pages and reloads, and its links can open the Scenario lab with the shocks filled in.
@@ -112,7 +122,7 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 ## Next
 
 1. **Connect a language model to the chat** (needs an API key and an HTTP client crate; plan.md section 2.8 lists the steps).
-2. **Step 6** (sales, campaigns, financing, Q15 to Q17), with matching chat tools.
+2. **Step 7**: Q18 "bad year" combined scenario (rubber, SEK, German subsidy together), then step 8 (move numeric facts out of the TTL).
 3. Optional: load the same TTL and rules into dev GraphDB with a no-inference ruleset and compare triple counts with the app.
 4. Build the Budget vs actual page (budget and actuals tables are already seeded).
 5. Add a pytest or similar HTTP-level suite against `/api`, and test the Docker setup on a machine with Docker.
@@ -145,7 +155,7 @@ python3 tools/gen_supply_abox.py
 cd web && npm install && npm run dev
 
 # Tests and benchmark
-cd app && cargo test            # 52 tests, run from app/ (reads ../rules and the root TTL files)
+cd app && cargo test            # 57 tests, run from app/ (reads ../rules and the root TTL files)
 cd app && cargo run --release -- bench
 
 # Optional: GraphDB Workbench on http://localhost:7200
