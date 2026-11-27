@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { api, streamChat, type ChatBlock, type ChatReply, type ChatStreamEvent } from '@/lib/api'
 import { BlockView } from './BlockView'
+import { Markdown } from './Markdown'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -169,7 +170,11 @@ export function ChatBubble() {
                       : 'bg-muted max-w-[95%] space-y-2 rounded-xl px-3 py-2 text-sm'
                   }
                 >
-                  <p className={m.error ? 'text-destructive whitespace-pre-wrap' : 'whitespace-pre-wrap'}>{m.text}</p>
+                  {m.role === 'user' || m.error ? (
+                    <p className={m.error ? 'text-destructive whitespace-pre-wrap' : 'whitespace-pre-wrap'}>{m.text}</p>
+                  ) : (
+                    <Markdown>{m.text}</Markdown>
+                  )}
                   {m.blocks?.map((b, j) => <BlockView key={j} block={b} onNavigate={() => setOpen(false)} />)}
                   {m.toolCalls && m.toolCalls.length > 0 && (
                     <details className="text-muted-foreground text-xs">
@@ -186,10 +191,10 @@ export function ChatBubble() {
               <div className="flex justify-start">
                 <div className="bg-muted max-w-[95%] space-y-2 rounded-xl px-3 py-2 text-sm">
                   {stream.text && (
-                    <p className="whitespace-pre-wrap">
-                      {stream.text}
-                      <span aria-hidden className="bg-foreground/50 ml-0.5 inline-block h-3.5 w-1.5 animate-pulse align-text-bottom" />
-                    </p>
+                    <>
+                      <Markdown>{stream.text}</Markdown>
+                      <span aria-hidden className="bg-foreground/50 inline-block h-3.5 w-1.5 animate-pulse align-text-bottom" />
+                    </>
                   )}
                   {stream.blocks.map((b, j) => <BlockView key={j} block={b} onNavigate={() => setOpen(false)} />)}
                   {stream.tool && <div className="text-muted-foreground text-xs">Running {stream.tool}…</div>}
