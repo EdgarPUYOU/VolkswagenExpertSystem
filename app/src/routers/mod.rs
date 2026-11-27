@@ -4,6 +4,7 @@ use crate::{
     services::{
         chat::{self, ChatRequest},
         combined::{self, CombinedRequest},
+        graph::{self, ExplainRequest},
         llm::{self, SdkBackend},
         finance::{self, BadRequest, ScenarioRequest, Snapshot},
         market::{self, MarketData},
@@ -91,6 +92,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/suppliers/lead-time", get(lead_time))
         .route("/api/components/single-sourced", get(single_sourced))
         .route("/api/models/{model}/margin-trace", get(margin_trace))
+        .route("/api/graph/explain", post(graph_explain))
+        .route("/api/graph/entities", get(graph_entities))
         .route("/api/sales/leads", get(sales_leads))
         .route("/api/sales/campaigns", get(sales_campaigns))
         .route("/api/sales/financing", get(sales_financing))
@@ -275,16 +278,16 @@ async fn dashboard(State(s): State<AppState>) -> ApiResult {
 async fn chat(State(s): State<AppState>, Json(req): Json<ChatRequest>) -> ApiResult {
     let (snap, md, sd) = sales_ctx(&s).map_err(fail)?;
     if let Some(backend) = &s.backend {
-        let cx = llm::Ctx { snap: &snap, md: &md, sd: &sd };
+        let cx = llm::Ctx { kg: &s.kg, snap: &snap, md: &md, sd: &sd };
         match llm::answer(backend, &s.llm, &cx, &req.message, &req.history, &today()).await {
             Ok(reply) => return Ok(Json(json!(reply))),
             Err(e) => tracing::warn!(error = %format!("{e:#}"), "model call failed, using the rule planner"),
         }
-        let mut reply = chat::plan(&snap, &md, &sd, &req.message, &today()).map_err(fail)?;
+        let mut reply = chat::plan(&s.kg, &snap, &md, &sd, &req.message, &today()).map_err(fail)?;
         reply.text = format!("The language model could not be reached, so this answer comes from keyword matching. {}", reply.text);
         return Ok(Json(json!(reply)));
     }
-    Ok(Json(json!(chat::plan(&snap, &md, &sd, &req.message, &today()).map_err(fail)?)))
+    Ok(Json(json!(chat::plan(&s.kg, &snap, &md, &sd, &req.message, &today()).map_err(fail)?)))
 }
 
 async fn chat_status(State(s): State<AppState>) -> Json<Value> {
@@ -304,7 +307,7 @@ async fn chat_tools() -> Json<Value> {
 
 async fn chat_tool(State(s): State<AppState>, Path(name): Path<String>, Json(args): Json<Value>) -> ApiResult {
     let (snap, md, sd) = sales_ctx(&s).map_err(fail)?;
-    Ok(Json(json!(chat::call_tool(&snap, &md, &sd, &name, &args, &today()).map_err(fail)?)))
+    Ok(Json(json!(chat::call_tool(&s.kg, &snap, &md, &sd, &name, &args, &today()).map_err(fail)?)))
 }
 
 #[derive(Deserialize)]
@@ -465,4 +468,19 @@ async fn get_combined(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResu
         Err(rusqlite::Error::QueryReturnedNoRows) => Err((StatusCode::NOT_FOUND, format!("no combined run {id}"))),
         Err(e) => Err(internal(e)),
     }
+}
+
+async fn graph_explain(State(s): State<AppState>, Json(req): Json<ExplainRequest>) -> ApiResult {
+    Ok(Json(json!(graph::explain(&s.kg, &req).map_err(fail)?)))
+}
+
+#[derive(Deserialize)]
+struct EntityParams {
+    q: Option<String>,
+    limit: Option<usize>,
+}
+
+async fn graph_entities(State(s): State<AppState>, Query(p): Query<EntityParams>) -> ApiResult {
+    let index = graph::GraphIndex::build(&s.kg).map_err(fail)?;
+    Ok(Json(json!(index.entities(p.q.as_deref().unwrap_or(""), p.limit.unwrap_or(20)))))
 }

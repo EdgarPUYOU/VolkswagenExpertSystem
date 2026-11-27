@@ -374,6 +374,8 @@ Done:
 
 - **Step 8, numeric facts in SQLite.** Migration 006 (`model_facts`, `contract_terms`), `facts.rs` writes them into `graph/erp-facts` at load, 165 triples removed from the TTL, projected volume computed; results identical to before; 64 tests. Dev GraphDB loading only the TTL files will not see these numbers.
 
+- **Explain graph.** Per-rule-file inference graphs for provenance, `services/graph.rs`, `/api/graph/*`, chat tool `explain_path` (21 tools) and "Show why" links, page `/graph` with Cytoscape.js. Explain paths first; the entity explorer and schema map are still to do.
+
 - **Chat bubble (section 2.8).** 11 tools, a rule-based planner, `/api/chat*` endpoints and the bubble UI. 14 new Rust tests (43 in total) cover the tool catalogue, every tool with sample arguments, bad input (400), and about 40 phrasings, including mixed rises and falls, currency moves, month counts and model names. Checked in a browser: suggestions, typed questions, charts and tables in the conversation, a link that opens the Scenario lab with the shocks filled in, and history that survives a reload. No language model is connected yet.
 
 Findings during step 4:

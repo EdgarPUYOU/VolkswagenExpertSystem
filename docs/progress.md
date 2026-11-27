@@ -132,6 +132,18 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 - Still open from plan section 7: `ComponentCategory` individuals duplicate the component subclasses.
 - Verified after the move: 74 tests, 3,832 triples, same graphs; server start from the new layout.
 
+### Explain graph (explainable answers)
+
+Goal: every answer can show the exact chain of knowledge-graph facts behind it and where each fact came from.
+
+- **Provenance.** Each rule file now writes to its own named graph (`graph/inferred/<rule file>`), so an inferred edge says which rule file derived it. Edges are classed as `asserted` (with the Turtle file), `inferred` (with the rule file) or `erp_fact` (SQLite numbers written into the graph). Same 834 inferred triples as before.
+- **`services/graph.rs`.** Finds the shortest routes (and routes one hop longer, up to 3 by default) between two entities over an allowlist of explanatory predicates (index to clause to contract to component to model to brand to profit center, supplier, market, regulation, rivals, campaigns, financing). Derived shortcuts such as `exposedToIndex` are left out on purpose because they would hide the real chain; an asserted fact and its inferred inverse are drawn once; currencies and suppliers can start or end a route but never sit in the middle (found by a test: "rubber to Euro to France to Golf" is not an explanation). Nodes carry their literal values (price, planned production, dates, ratings) with origin, for the side panel.
+- **API.** `POST /api/graph/explain` (pairs, max depth, max paths; names, labels or IRIs accepted; unknown or ambiguous names are 400) and `GET /api/graph/entities` for the pickers.
+- **Chat.** New tool `explain_path` (21 tools) returns the chain as text with provenance, key values of the end entity and a table of hops. The main analyses (scenario, bad year, margin trace, lead time, supplier risk, subsidy, competitor cut) add a "Show why" link to the matching graph, built from the tool's own result. The planner routes "how does X affect Y", "how is X connected to Y" and "path from X to Y" to it. The language model gets the tool too, so it can ground an explanation in the graph.
+- **UI.** Page "Explain graph" (`/graph`), written by a subagent against a fixed contract: Cytoscape.js with a left-to-right dagre layout, nodes coloured by type, solid / dashed / dotted edges for asserted / inferred / ERP fact, route list with highlight, side panel with literals and origin. Loaded lazily.
+- Realistic outputs checked on the live graph: rubber to Golf (indexed-to, indexation clause, contract, component, model), krona to Scania R-series (contract currency, contract, engine, model), German subsidy to ID.4 (derived `subsidised by` from 50_market.ru plus the asserted market and powertrain chains), CO2 target to A4, Tesla Model Y to ID.4 (competes with).
+- Limits: a route explains structure, not arithmetic: how much a clause weighs or what the pass-through is stays in the margin trace; rule provenance is per rule file, not per rule inside a file; the graph holds structure only up to the allowlist, so new predicates need adding to `ALLOWED`.
+
 ### Chat bubble
 
 - "Ask the data" bubble on every page: answers with KPI tiles, tables, bar charts and links, keeps its history across pages and reloads, and its links can open the Scenario lab with the shocks filled in.
@@ -192,7 +204,7 @@ python3 tools/gen_supply_abox.py
 cd web && npm install && npm run dev
 
 # Tests and benchmark
-cd app && cargo test            # 74 tests, run from app/ (reads ../rules and the root TTL files)
+cd app && cargo test            # 87 tests, run from app/ (reads ../rules and the root TTL files)
 cd app && cargo run --release -- bench
 
 # Optional: GraphDB Workbench on http://localhost:7200

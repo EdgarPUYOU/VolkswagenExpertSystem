@@ -13,10 +13,13 @@ use std::io::BufReader;
 use std::path::Path;
 
 pub const GRAPH_BASE: &str = "http://example.org/volkswagen/graph/";
-/// Named graph that receives every triple derived by the rules.
+/// Prefix of the named graphs that receive the triples derived by the rules: one graph per rule file,
+/// `<prefix>/<rule file stem>`, so every inferred triple records which rule file derived it.
 /// Named graph that receives the numeric facts written from SQLite.
 pub const FACTS_GRAPH: &str = "http://example.org/volkswagen/graph/erp-facts";
 pub const INFERRED_GRAPH: &str = "http://example.org/volkswagen/graph/inferred";
+/// What the rule files write to; replaced by the per-file graph before a rule runs.
+const RULE_TARGET: &str = "<http://example.org/volkswagen/graph/inferred>";
 /// Upper bound on fixpoint passes; hitting it means a rule keeps producing new triples.
 const MAX_PASSES: usize = 25;
 
@@ -49,6 +52,8 @@ pub struct InferStats {
 
 pub struct Kg {
     store: Store,
+    /// graph IRI -> the TTL file it was loaded from
+    graph_files: BTreeMap<String, String>,
 }
 
 impl Kg {
@@ -64,6 +69,7 @@ impl Kg {
         files.sort();
 
         let mut stats = Vec::new();
+        let mut graph_files = BTreeMap::new();
         for path in files {
             let stem = path.file_stem().unwrap().to_string_lossy().to_lowercase();
             let graph = NamedNode::new(format!("{GRAPH_BASE}{stem}"))?;
@@ -78,13 +84,11 @@ impl Kg {
             let triples = store
                 .quads_for_pattern(None, None, None, Some(GraphNameRef::NamedNode(graph.as_ref())))
                 .count();
-            stats.push(GraphStat {
-                graph: graph.into_string(),
-                file: path.file_name().unwrap().to_string_lossy().into_owned(),
-                triples,
-            });
+            let file = path.file_name().unwrap().to_string_lossy().into_owned();
+            graph_files.insert(graph.as_str().to_string(), file.clone());
+            stats.push(GraphStat { graph: graph.into_string(), file, triples });
         }
-        Ok((Kg { store }, stats))
+        Ok((Kg { store, graph_files }, stats))
     }
 
     /// Write numeric facts (from SQLite) into their own named graph.
@@ -131,6 +135,8 @@ impl Kg {
             .iter()
             .map(|p| {
                 let text = std::fs::read_to_string(p).with_context(|| format!("reading {}", p.display()))?;
+                let stem = p.file_stem().unwrap().to_string_lossy().into_owned();
+                let text = text.replace(RULE_TARGET, &format!("<{INFERRED_GRAPH}/{stem}>"));
                 Ok((p.file_name().unwrap().to_string_lossy().into_owned(), text))
             })
             .collect::<Result<_>>()?;
@@ -156,12 +162,21 @@ impl Kg {
             }
             anyhow::ensure!(passes < MAX_PASSES, "rules did not reach a fixpoint after {MAX_PASSES} passes");
         }
-        let graph = NamedNode::new(INFERRED_GRAPH)?;
-        let inferred = self
-            .store
-            .quads_for_pattern(None, None, None, Some(GraphNameRef::NamedNode(graph.as_ref())))
-            .count();
+        let prefix = format!("{INFERRED_GRAPH}/");
+        let mut inferred = 0;
+        for g in self.store.named_graphs() {
+            if let oxigraph::model::NamedOrBlankNode::NamedNode(n) = g?
+                && n.as_str().starts_with(&prefix)
+            {
+                inferred += self.store.quads_for_pattern(None, None, None, Some(GraphNameRef::NamedNode(n.as_ref()))).count();
+            }
+        }
         Ok(InferStats { passes, inferred })
+    }
+
+    /// The TTL file a graph was loaded from, if any.
+    pub fn graph_file(&self, graph: &str) -> Option<&str> {
+        self.graph_files.get(graph).map(String::as_str)
     }
 
     pub fn len(&self) -> Result<usize> {

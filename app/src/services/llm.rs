@@ -26,6 +26,7 @@ const MAX_TOOL_CHARS: usize = 8000;
 const CALL_TIMEOUT: Duration = Duration::from_secs(60);
 
 pub struct Ctx<'a> {
+    pub kg: &'a crate::kg::Kg,
     pub snap: &'a Snapshot,
     pub md: &'a MarketData,
     pub sd: &'a SalesData,
@@ -94,7 +95,7 @@ fn run_tool(cx: &Ctx, name: &str, raw_args: &str, today: &str) -> (String, Vec<B
     if args.is_null() {
         return (format!("error: the arguments were not valid JSON: {}", clip(raw_args, 200)), vec![], Value::Null);
     }
-    match chat::call_tool(cx.snap, cx.md, cx.sd, name, &args, today) {
+    match chat::call_tool(cx.kg, cx.snap, cx.md, cx.sd, name, &args, today) {
         Ok(out) => {
             let data = clip(&out.data.to_string(), MAX_TOOL_CHARS);
             (format!("{}\n\nData (JSON, may be truncated):\n{data}", out.summary), out.blocks, args)
@@ -184,15 +185,15 @@ mod tests {
             "tool_calls": [{ "id": id, "type": "function", "function": { "name": name, "arguments": args } }] }, "finish_reason": "tool_calls" }] })
     }
 
-    fn world() -> (Snapshot, MarketData, SalesData) {
+    fn world() -> (Snapshot, MarketData, SalesData, crate::kg::Kg) {
         let (kg, mut conn) = crate::kg::load_for_test();
         crate::seed::seed(&kg, &mut conn).unwrap();
-        (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap(), SalesData::load(&kg, &conn).unwrap())
+        (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap(), SalesData::load(&kg, &conn).unwrap(), kg)
     }
 
     async fn run(script: &Script, message: &str, history: &[Turn]) -> Result<Reply> {
         let w = world();
-        let cx = Ctx { snap: &w.0, md: &w.1, sd: &w.2 };
+        let cx = Ctx { kg: &w.3, snap: &w.0, md: &w.1, sd: &w.2 };
         converse(script, "deepseek-chat", &cx, message, history, "2026-11-27").await
     }
 

@@ -7,7 +7,9 @@
 //! nothing else changes. Tools never accept SPARQL or SQL.
 
 use super::combined::{self, CombinedRequest};
+use crate::kg::Kg;
 use super::finance::*;
+use super::graph::{self, ExplainRequest, PairReq};
 use super::market::{self, MarketData};
 use super::sales::{self, SalesData};
 use super::questions;
@@ -334,6 +336,19 @@ pub fn tools() -> Vec<Tool> {
             }),
         },
         Tool {
+            name: "explain_path",
+            description: "Explain how two things are connected in the knowledge graph: the chain of facts between them (for example a commodity index and a model, a regulation and a model, a supplier and a model), with where each fact comes from (asserted in a data file, derived by a rule file, or an ERP number) and the key values of each entity. Use it when asked 'how does X affect Y', 'why is X exposed', or to back up another answer with its evidence.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "from": { "type": "string", "description": "Start entity: index (NaturalRubber), currency (SEK), supplier, regulation, model, ... Use list_entities to find names." },
+                    "to": { "type": "string", "description": "End entity, for example a model such as Golf or a profit center." },
+                    "max_paths": { "type": "integer", "description": "Alternative routes to show. Default 3." }
+                },
+                "required": ["from", "to"]
+            }),
+        },
+        Tool {
             name: "list_entities",
             description: "List the names the other tools accept: models, suppliers, commodity indices or currencies.",
             input_schema: json!({
@@ -410,6 +425,12 @@ struct FinancingArgs {
     market: Option<String>,
 }
 #[derive(Deserialize)]
+struct ExplainArgs {
+    from: String,
+    to: String,
+    max_paths: Option<usize>,
+}
+#[derive(Deserialize)]
 struct ListArgs {
     kind: String,
 }
@@ -420,7 +441,159 @@ fn link(label: &str, to: &str) -> Block {
 
 // ---------------------------------------------------------------- tool execution
 
-pub fn call_tool(snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, args: &Value, today: &str) -> Result<ToolOutput> {
+/// Run a tool. Analyses also get a "show why" link to the reasoning graph; `explain_path` is the graph itself.
+pub fn call_tool(kg: &Kg, snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, args: &Value, today: &str) -> Result<ToolOutput> {
+    if name == "explain_path" {
+        return explain_tool(kg, args);
+    }
+    let mut out = call_tool_inner(snap, md, sd, name, args, today)?;
+    let pairs = why_pairs(snap, md, name, &out.data);
+    if !pairs.is_empty() {
+        out.blocks.push(Block::Link { label: "Show why: the facts behind this".into(), to: graph::explain_link(&pairs), shocks: None });
+    }
+    Ok(out)
+}
+
+fn explain_tool(kg: &Kg, args: &Value) -> Result<ToolOutput> {
+    let a: ExplainArgs = parse(args)?;
+    let g = graph::explain(kg, &ExplainRequest { pairs: vec![PairReq { from: a.from, to: a.to }], max_depth: None, max_paths: a.max_paths })?;
+    let p = &g.paths[0];
+    let node = |id: &str| g.nodes.iter().find(|n| n.id == id);
+    let mut summary = graph::describe(&g);
+    if p.found {
+        if let Some(n) = p.routes.first().and_then(|r| r.nodes.last()).and_then(|id| node(id)) {
+            let facts: Vec<String> = n.properties.iter().take(6).map(|x| format!("{} {}", x.label, x.value)).collect();
+            if !facts.is_empty() {
+                summary += &format!("\nKey values of {}: {}.", n.label, facts.join(", "));
+            }
+        }
+        summary += "\nLinks marked 'derived' come from rules; everything else is stated in the data files or comes from the ERP database.";
+    }
+    let mut blocks = Vec::new();
+    if let Some(r) = p.routes.first() {
+        let rows: Vec<Vec<String>> = r
+            .edges
+            .iter()
+            .enumerate()
+            .filter_map(|(i, eid)| {
+                let e = g.edges.iter().find(|e| &e.id == eid)?;
+                let (from, to) = (node(&r.nodes[i])?.label.clone(), node(&r.nodes[i + 1])?.label.clone());
+                let link = if e.source == r.nodes[i] { e.label.clone() } else { format!("{} (reverse)", e.label) };
+                let src = match e.origin.kind {
+                    "inferred" => format!("derived by {}", e.origin.source),
+                    "erp_fact" => "ERP number (SQLite)".to_string(),
+                    _ => format!("asserted in {}", e.origin.source),
+                };
+                Some(vec![from, link, to, src])
+            })
+            .collect();
+        if !rows.is_empty() {
+            blocks.push(Block::Table { title: format!("{} to {}", p.from_label, p.to_label), columns: ["From", "Link", "To", "Where it comes from"].map(String::from).to_vec(), rows });
+        }
+    }
+    blocks.push(Block::Link { label: "Open the reasoning graph".into(), to: graph::explain_link(&[(p.from.clone(), p.to.clone())]), shocks: None });
+    Ok(ToolOutput { summary, blocks, data: to_value(&g)? })
+}
+
+/// Does a price move in `source` (an index or currency IRI) reach this model through its contracts?
+fn reaches(snap: &Snapshot, model_iri: &str, kind: &str, source: &str) -> bool {
+    snap.model_components.get(model_iri).into_iter().flatten().filter_map(|c| snap.contract_for(c)).any(|c| match kind {
+        "fx" => c.currency == source,
+        _ => c.clauses.iter().any(|cl| cl.index == source),
+    })
+}
+
+fn pc_of(snap: &Snapshot, model_iri: &str) -> Option<String> {
+    snap.models.iter().find(|m| m.iri == model_iri).map(|m| m.pc_iri.clone())
+}
+
+fn push_unique(pairs: &mut Vec<(String, String)>, a: String, b: String) {
+    if !pairs.iter().any(|(x, y)| *x == a && *y == b) {
+        pairs.push((a, b));
+    }
+}
+
+/// The (start, end) pairs whose reasoning graph backs a tool's answer, read from the tool's JSON result.
+fn why_pairs(snap: &Snapshot, md: &MarketData, name: &str, data: &Value) -> Vec<(String, String)> {
+    let mut pairs = Vec::new();
+    let s = |v: &Value| v.as_str().unwrap_or_default().to_string();
+    let shock_pairs = |pairs: &mut Vec<(String, String)>, models: Vec<(String, String)>| {
+        for sh in data["shocks"].as_array().into_iter().flatten().take(3) {
+            let (kind, target) = (s(&sh["kind"]), s(&sh["target"]));
+            let source = if kind == "fx" { snap.resolve_currency(&target).ok() } else { snap.resolve_index(&target).ok() };
+            let Some(source) = source else { continue };
+            if let Some((model, pc)) = models.iter().find(|(m, _)| reaches(snap, m, &kind, &source)) {
+                push_unique(pairs, source, model.clone());
+                push_unique(pairs, model.clone(), pc.clone());
+            }
+        }
+    };
+    match name {
+        "run_scenario" => {
+            let models = data["by_model"].as_array().into_iter().flatten().filter(|m| m["extra_cost"].as_f64().unwrap_or(0.0) > 0.0).filter_map(|m| Some((s(&m["iri"]), pc_of(snap, &s(&m["iri"]))?))).collect();
+            shock_pairs(&mut pairs, models);
+        }
+        "combined_scenario" => {
+            let top: Vec<&Value> = data["top_models"].as_array().into_iter().flatten().collect();
+            let models = top.iter().filter_map(|m| Some((s(&m["iri"]), pc_of(snap, &s(&m["iri"]))?))).collect();
+            shock_pairs(&mut pairs, models);
+            let markets: Vec<String> = data["subsidy_markets"].as_array().into_iter().flatten().map(&s).collect();
+            if let Some(m) = top.iter().find(|m| m["lost_units"].as_f64().unwrap_or(0.0) > 0.0) {
+                for sub in md.subsidies.iter().filter(|x| md.markets.get(&x.market).is_some_and(|mk| markets.contains(&mk.label))) {
+                    push_unique(&mut pairs, sub.iri.clone(), s(&m["iri"]));
+                }
+            }
+        }
+        "margin_trace" => {
+            let model = s(&data["model"]);
+            let mut drivers: Vec<(String, f64)> = data["components"].as_array().into_iter().flatten().flat_map(|c| c["drivers"].as_array().into_iter().flatten()).map(|d| (s(&d["index"]), d["delta_eur_per_unit"].as_f64().unwrap_or(0.0).abs())).collect();
+            drivers.sort_by(|a, b| b.1.total_cmp(&a.1));
+            for (label, _) in drivers.iter().take(3) {
+                if let Some(iri) = snap.index_labels.iter().find(|(_, l)| *l == label).map(|(i, _)| i.clone()) {
+                    push_unique(&mut pairs, iri, model.clone());
+                }
+            }
+            if let Some(pc) = pc_of(snap, &model) {
+                push_unique(&mut pairs, model, pc);
+            }
+        }
+        "lead_time_impact" => {
+            for m in data["models"].as_array().into_iter().flatten().take(2) {
+                push_unique(&mut pairs, s(&data["supplier"]), s(&m["iri"]));
+            }
+        }
+        "supplier_risk" => {
+            if let Some(first) = data.as_array().and_then(|a| a.first()) {
+                for label in first["models"].as_array().into_iter().flatten().take(2) {
+                    if let Some(m) = snap.models.iter().find(|m| m.label == s(label)) {
+                        push_unique(&mut pairs, s(&first["iri"]), m.iri.clone());
+                    }
+                }
+            }
+        }
+        "subsidy_removal" => {
+            let label = s(&data["market"]);
+            for sub in md.subsidies.iter().filter(|x| md.markets.get(&x.market).is_some_and(|mk| mk.label == label)) {
+                for m in data["models"].as_array().into_iter().flatten().take(2) {
+                    push_unique(&mut pairs, sub.iri.clone(), s(&m["iri"]));
+                }
+            }
+        }
+        "competitor_price_cut" => {
+            for h in data["hits"].as_array().into_iter().flatten().filter(|h| h["undercut"].as_bool().unwrap_or(false)).take(2) {
+                let model = snap.models.iter().find(|m| m.label == s(&h["model"]));
+                let rival = md.rivals.values().find(|r| r.label == s(&h["rival"]));
+                if let (Some(m), Some(r)) = (model, rival) {
+                    push_unique(&mut pairs, m.iri.clone(), r.iri.clone());
+                }
+            }
+        }
+        _ => {}
+    }
+    pairs
+}
+
+fn call_tool_inner(snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, args: &Value, today: &str) -> Result<ToolOutput> {
     match name {
         "run_scenario" => {
             let a: ScenarioArgs = parse(args)?;
@@ -1105,6 +1278,22 @@ fn first_percent(lower: &str) -> Option<f64> {
     find_percents(lower).first().map(|p| p.1.abs())
 }
 
+/// "how does natural rubber affect the Golf?" -> ("natural rubber", "golf"). Needs a linking phrase and two sides.
+fn extract_pair(lower: &str) -> Option<(String, String)> {
+    const LINKS: &[&str] = &[" connected to ", " connected with ", " linked to ", " related to ", " affects ", " affect ", " reaches ", " reach ", " impacts ", " impact ", " hits ", " drives ", " to "];
+    const OPENERS: &[&str] = &["how does", "how do", "how is", "how are", "why does", "why do", "why is", "explain how", "explain why", "show how", "show the path from", "path from", "the path from", "connection between", "link between"];
+    const FILLER: &[&str] = &["the", "a", "an", "our", "its", "of", "and", "between", "from"];
+    let mut text = format!(" {} ", lower.trim().trim_end_matches('?'));
+    let opener = OPENERS.iter().find(|o| text.trim_start().starts_with(**o));
+    opener?;
+    text = text.trim_start().strip_prefix(*opener?)?.to_string();
+    let text = format!(" {} ", text.trim());
+    let (idx, link) = LINKS.iter().filter_map(|l| text.find(l).map(|i| (i, *l))).min_by_key(|(i, _)| *i)?;
+    let clean = |t: &str| t.split_whitespace().filter(|w| !FILLER.contains(w)).collect::<Vec<_>>().join(" ");
+    let (a, b) = (clean(&text[..idx]), clean(&text[idx + link.len()..]));
+    (!a.is_empty() && !b.is_empty()).then_some((a, b))
+}
+
 pub const SUGGESTIONS: &[&str] = &[
     "What if rubber goes up 15%?",
     "Which models fall below 15% margin if steel rises 10% and aluminium 8%?",
@@ -1123,6 +1312,7 @@ pub const SUGGESTIONS: &[&str] = &[
     "Which incentive campaigns spend on models already at capacity?",
     "Is lease or loan more profitable for Taycan buyers in Prague?",
     "What does a bad year cost: rubber up 15%, krona up 5% and no German EV subsidy?",
+    "How does natural rubber affect the Golf?",
 ];
 
 fn help_text() -> String {
@@ -1132,8 +1322,10 @@ fn help_text() -> String {
     )
 }
 
-fn call(snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, args: Value, today: &str, prefix: Option<String>) -> Result<Reply> {
-    let out = call_tool(snap, md, sd, name, &args, today)?;
+/// Planner helper: run one tool and wrap its output as a reply.
+#[allow(clippy::too_many_arguments)]
+fn call(kg: &Kg, snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, args: Value, today: &str, prefix: Option<String>) -> Result<Reply> {
+    let out = call_tool(kg, snap, md, sd, name, &args, today)?;
     let text = match prefix {
         Some(p) => format!("{p} {}", out.summary),
         None => out.summary,
@@ -1142,7 +1334,7 @@ fn call(snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, args: Valu
 }
 
 /// Map a sentence to one tool call. Returns help text when nothing matches.
-pub fn plan(snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, today: &str) -> Result<Reply> {
+pub fn plan(kg: &Kg, snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, today: &str) -> Result<Reply> {
     let lower = message.to_lowercase();
     let lower = lower.trim();
 
@@ -1158,9 +1350,12 @@ pub fn plan(snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, tod
             } else {
                 find_number_before(lower, &["x", "times"]).unwrap_or(2.0)
             };
-            return call(snap, md, sd, "lead_time_impact", json!({ "supplier": supplier, "factor": factor }), today, None);
+            return call(kg, snap, md, sd, "lead_time_impact", json!({ "supplier": supplier, "factor": factor }), today, None);
         }
         return Ok(Reply { text: "Which supplier? For example: battery, brakes, tyres, transmission, infotainment, electric drive, powertrain.".into(), blocks: vec![], tool_calls: vec![], planner: "rules" });
+    }
+    if let Some((from, to)) = extract_pair(lower) {
+        return call(kg, snap, md, sd, "explain_path", json!({ "from": from, "to": to }), today, None);
     }
     if lower.contains("bad year") || (lower.contains("subsid") && !find_mentions(lower).is_empty()) {
         let (mut shocks, _) = plan_shocks(lower);
@@ -1171,15 +1366,15 @@ pub fn plan(snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, tod
             ];
         }
         let market = MARKET_WORDS.iter().find(|(w, _)| lower.contains(w)).map_or("Germany", |m| m.1);
-        return call(snap, md, sd, "combined_scenario", json!({ "shocks": shocks, "subsidy_markets": [market] }), today, None);
+        return call(kg, snap, md, sd, "combined_scenario", json!({ "shocks": shocks, "subsidy_markets": [market] }), today, None);
     }
     if has_any(lower, &["subsid"]) {
         let market = MARKET_WORDS.iter().find(|(w, _)| lower.contains(w)).map_or("Germany", |m| m.1);
-        return call(snap, md, sd, "subsidy_removal", json!({ "market": market }), today, None);
+        return call(kg, snap, md, sd, "subsidy_removal", json!({ "market": market }), today, None);
     }
     if has_any(lower, &["co2", "emission", "fleet target"]) {
         let tighten = first_percent(lower).unwrap_or(10.0);
-        return call(snap, md, sd, "co2_fleet", json!({ "tighten_percent": tighten }), today, None);
+        return call(kg, snap, md, sd, "co2_fleet", json!({ "tighten_percent": tighten }), today, None);
     }
     let rival = COMPETITOR_WORDS.iter().find(|(w, _)| lower.contains(w)).map(|m| m.1);
     if rival.is_some() || has_any(lower, &["competitor", "rival"]) {
@@ -1187,41 +1382,41 @@ pub fn plan(snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, tod
         if let Some(r) = rival {
             args["competitor"] = json!(r);
         }
-        return call(snap, md, sd, "competitor_price_cut", args, today, None);
+        return call(kg, snap, md, sd, "competitor_price_cut", args, today, None);
     }
     if has_any(lower, &["production site", "one site", "single site", "which plant", "site depend", "depends most on"]) {
-        return call(snap, md, sd, "site_dependency", json!({}), today, None);
+        return call(kg, snap, md, sd, "site_dependency", json!({}), today, None);
     }
     if has_any(lower, &["powertrain", "production mix", "shift production", "shift toward", "shift towards", "mix toward", "mix shift"]) {
-        return call(snap, md, sd, "powertrain_mix", json!({ "shift_percent": first_percent(lower).unwrap_or(10.0) }), today, None);
+        return call(kg, snap, md, sd, "powertrain_mix", json!({ "shift_percent": first_percent(lower).unwrap_or(10.0) }), today, None);
     }
     if has_any(lower, &["high-intent", "high intent", "hot lead", "leads", "prospect"]) {
-        return call(snap, md, sd, "lead_pressure", json!({}), today, None);
+        return call(kg, snap, md, sd, "lead_pressure", json!({}), today, None);
     }
     if has_any(lower, &["campaign", "incentive"]) {
-        return call(snap, md, sd, "campaign_capacity", json!({}), today, None);
+        return call(kg, snap, md, sd, "campaign_capacity", json!({}), today, None);
     }
     if has_any(lower, &["lease", "leasing", "loan", "financing"]) {
         let market = MARKET_WORDS.iter().find(|(w, _)| lower.contains(w)).map_or("Czech Republic", |m| m.1);
         let model = find_model(snap, message).unwrap_or_else(|| "Taycan".into());
-        return call(snap, md, sd, "financing_comparison", json!({ "model": model, "market": market }), today, None);
+        return call(kg, snap, md, sd, "financing_comparison", json!({ "model": model, "market": market }), today, None);
     }
     if has_any(lower, &["expire", "expiring", "expiry", "renewal", "renew", "ending", "end soon"]) {
         let months = find_number_before(lower, &["month", "months"])
             .map(|m| m as u32)
             .or_else(|| find_number_before(lower, &["year", "years"]).map(|y| y as u32 * 12))
             .unwrap_or(12);
-        return call(snap, md, sd, "expiring_contracts", json!({ "months": months }), today, None);
+        return call(kg, snap, md, sd, "expiring_contracts", json!({ "months": months }), today, None);
     }
     if has_any(lower, &["single source", "single-source", "single sourced", "single-sourced", "sole source", "no alternative", "second source", "only one supplier"]) {
-        return call(snap, md, sd, "single_sourced_components", json!({}), today, None);
+        return call(kg, snap, md, sd, "single_sourced_components", json!({}), today, None);
     }
     if has_any(lower, &["saving", "savings", "discount", "volume tier"]) {
-        return call(snap, md, sd, "discount_savings", json!({}), today, None);
+        return call(kg, snap, md, sd, "discount_savings", json!({}), today, None);
     }
     let wants_explanation = has_any(lower, &["why", "explain", "margin drop", "margin fall", "margin change", "margin of", "margin for"]);
     if let (true, Some(model)) = (wants_explanation, find_model(snap, message)) {
-        return call(snap, md, sd, "margin_trace", json!({ "model": model }), today, None);
+        return call(kg, snap, md, sd, "margin_trace", json!({ "model": model }), today, None);
     }
 
     let moves = has_any(lower, &["what if", "what happens", "if "]) || words(lower).iter().any(|w| UP.contains(&w.as_str()) || DOWN.contains(&w.as_str()));
@@ -1230,23 +1425,23 @@ pub fn plan(snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, tod
     if !mentions.is_empty() && (has_percent || moves) && !has_any(lower, &["exposure", "exposed", "share of", "how much of"]) {
         let (shocks, assumed) = plan_shocks(lower);
         let prefix = assumed.then(|| "You did not give a size for every move, so I assumed 10%.".to_string());
-        return call(snap, md, sd, "run_scenario", json!({ "shocks": shocks }), today, prefix);
+        return call(kg, snap, md, sd, "run_scenario", json!({ "shocks": shocks }), today, prefix);
     }
 
     if has_any(lower, &["supplier", "suppliers", "depend", "vendor"]) {
-        return call(snap, md, sd, "supplier_risk", json!({}), today, None);
+        return call(kg, snap, md, sd, "supplier_risk", json!({}), today, None);
     }
     if has_any(lower, &["currency", "currencies", "fx", "exchange", "foreign", "krona", "koruna", "sek", "czk"]) {
-        return call(snap, md, sd, "currency_exposure", json!({}), today, None);
+        return call(kg, snap, md, sd, "currency_exposure", json!({}), today, None);
     }
     if has_any(lower, &["sensitiv", "commodity", "commodities", "raw material", "exposed"]) {
-        return call(snap, md, sd, "commodity_sensitivity", json!({}), today, None);
+        return call(kg, snap, md, sd, "commodity_sensitivity", json!({}), today, None);
     }
     if has_any(lower, &["dashboard", "overview", "summary", "kpi", "how are we doing", "headline", "status"]) {
-        return call(snap, md, sd, "dashboard", json!({}), today, None);
+        return call(kg, snap, md, sd, "dashboard", json!({}), today, None);
     }
     if let Some(model) = find_model(snap, message) {
-        return call(snap, md, sd, "margin_trace", json!({ "model": model }), today, None);
+        return call(kg, snap, md, sd, "margin_trace", json!({ "model": model }), today, None);
     }
     Ok(Reply { text: format!("I did not understand that. {}", help_text()), blocks: vec![], tool_calls: vec![], planner: "rules" })
 }
@@ -1257,16 +1452,16 @@ mod tests {
 
     const TODAY: &str = "2026-11-27";
 
-    type World = (Snapshot, MarketData, SalesData);
+    type World = (Snapshot, MarketData, SalesData, Kg);
 
     fn snap() -> World {
         let (kg, mut conn) = crate::kg::load_for_test();
         crate::seed::seed(&kg, &mut conn).unwrap();
-        (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap(), SalesData::load(&kg, &conn).unwrap())
+        (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap(), SalesData::load(&kg, &conn).unwrap(), kg)
     }
 
     fn ask(w: &World, message: &str) -> Reply {
-        plan(&w.0, &w.1, &w.2, message, TODAY).unwrap()
+        plan(&w.3, &w.0, &w.1, &w.2, message, TODAY).unwrap()
     }
 
     fn tool_of(r: &Reply) -> &str {
@@ -1320,6 +1515,7 @@ mod tests {
             ("campaign_capacity", json!({ "threshold_percent": 90 })),
             ("financing_comparison", json!({ "model": "Taycan" })),
             ("combined_scenario", json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }], "subsidy_markets": ["Germany"] })),
+            ("explain_path", json!({ "from": "NaturalRubber", "to": "Golf" })),
             ("list_entities", json!({ "kind": "models" })),
             ("list_entities", json!({ "kind": "markets" })),
             ("list_entities", json!({ "kind": "competitors" })),
@@ -1327,7 +1523,7 @@ mod tests {
         let covered: std::collections::BTreeSet<_> = samples.iter().map(|s| s.0).collect();
         assert_eq!(covered, tools().iter().map(|t| t.name).collect(), "a sample for every tool");
         for (name, args) in samples {
-            let out = call_tool(&snap.0, &snap.1, &snap.2, name, &args, TODAY).unwrap_or_else(|e| panic!("{name}: {e:#}"));
+            let out = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, name, &args, TODAY).unwrap_or_else(|e| panic!("{name}: {e:#}"));
             assert!(!out.summary.is_empty() && !out.blocks.is_empty(), "{name}");
             serde_json::to_string(&out.blocks).unwrap();
         }
@@ -1354,9 +1550,11 @@ mod tests {
             ("financing_comparison", json!({ "model": "Golf" })),
             ("financing_comparison", json!({ "market": "Atlantis" })),
             ("combined_scenario", json!({})),
+            ("explain_path", json!({ "from": "Atlantis", "to": "Golf" })),
+            ("explain_path", json!({ "from": "Golf" })),
             ("combined_scenario", json!({ "subsidy_markets": ["Atlantis"] })),
         ] {
-            let err = call_tool(&snap.0, &snap.1, &snap.2, name, &args, TODAY).unwrap_err();
+            let err = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, name, &args, TODAY).unwrap_err();
             assert!(err.downcast_ref::<BadRequest>().is_some(), "{name} {args}: {err:#}");
         }
     }
@@ -1364,7 +1562,7 @@ mod tests {
     #[test]
     fn scenario_summary_states_the_numbers() {
         let snap = snap();
-        let out = call_tool(&snap.0, &snap.1, &snap.2, "run_scenario", &json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }] }), TODAY).unwrap();
+        let out = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "run_scenario", &json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }] }), TODAY).unwrap();
         assert!(out.summary.contains("Natural rubber +15%"), "{}", out.summary);
         assert!(out.summary.contains("€100.") || out.summary.contains("€101."), "{}", out.summary);
         assert!(out.blocks.iter().any(|b| matches!(b, Block::Link { shocks: Some(s), .. } if s.len() == 1)));
@@ -1373,7 +1571,7 @@ mod tests {
     #[test]
     fn a_shock_nothing_is_priced_on_says_so() {
         let snap = snap();
-        let out = call_tool(&snap.0, &snap.1, &snap.2, "run_scenario", &json!({ "shocks": [{ "kind": "fx", "target": "USD", "percent": 10 }] }), TODAY).unwrap();
+        let out = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "run_scenario", &json!({ "shocks": [{ "kind": "fx", "target": "USD", "percent": 10 }] }), TODAY).unwrap();
         assert!(out.summary.starts_with("No supply contract is priced off"), "{}", out.summary);
     }
 
@@ -1446,6 +1644,9 @@ mod tests {
             ("Is lease or loan more profitable for Taycan buyers in Prague?", "financing_comparison"),
             ("What does a bad year cost: rubber up 15%, krona up 5% and no German EV subsidy?", "combined_scenario"),
             ("what if a bad year hits", "combined_scenario"),
+            ("How does natural rubber affect the Golf?", "explain_path"),
+            ("how is the Reg_DE_EVSubsidy connected to the ID.4", "explain_path"),
+            ("show the path from steel to the Scania R-series", "explain_path"),
         ];
         for (q, tool) in cases {
             assert_eq!(tool_of(&ask(&snap, q)), tool, "{q}");
@@ -1485,26 +1686,26 @@ mod tests {
     #[test]
     fn market_summaries_state_the_numbers() {
         let snap = snap();
-        let out = call_tool(&snap.0, &snap.1, &snap.2, "subsidy_removal", &json!({ "market": "Germany" }), TODAY).unwrap();
+        let out = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "subsidy_removal", &json!({ "market": "Germany" }), TODAY).unwrap();
         assert!(out.summary.contains("Enyaq") && out.summary.contains("2 high-intent lead"), "{}", out.summary);
-        let none = call_tool(&snap.0, &snap.1, &snap.2, "subsidy_removal", &json!({ "market": "Sweden" }), TODAY).unwrap();
+        let none = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "subsidy_removal", &json!({ "market": "Sweden" }), TODAY).unwrap();
         assert!(none.summary.starts_with("No EV subsidy applies in Sweden"), "{}", none.summary);
-        let co2 = call_tool(&snap.0, &snap.1, &snap.2, "co2_fleet", &json!({ "tighten_percent": 10 }), TODAY).unwrap();
+        let co2 = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "co2_fleet", &json!({ "tighten_percent": 10 }), TODAY).unwrap();
         assert!(co2.summary.contains("Audi") && co2.summary.contains("3 brand"), "{}", co2.summary);
-        let site = call_tool(&snap.0, &snap.1, &snap.2, "site_dependency", &json!({}), TODAY).unwrap();
+        let site = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "site_dependency", &json!({}), TODAY).unwrap();
         assert!(site.summary.contains("Wolfsburg"), "{}", site.summary);
-        let comp = call_tool(&snap.0, &snap.1, &snap.2, "competitor_price_cut", &json!({ "competitor": "Tesla" }), TODAY).unwrap();
+        let comp = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "competitor_price_cut", &json!({ "competitor": "Tesla" }), TODAY).unwrap();
         assert!(comp.summary.contains("ID.4") && !comp.summary.contains("Enyaq"), "{}", comp.summary);
     }
 
     #[test]
     fn sales_summaries_state_the_numbers() {
         let snap = snap();
-        let leads = call_tool(&snap.0, &snap.1, &snap.2, "lead_pressure", &json!({}), TODAY).unwrap();
+        let leads = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "lead_pressure", &json!({}), TODAY).unwrap();
         assert!(leads.summary.starts_with("2 of 2 high-intent") && leads.summary.contains("Enyaq"), "{}", leads.summary);
-        let camp = call_tool(&snap.0, &snap.1, &snap.2, "campaign_capacity", &json!({}), TODAY).unwrap();
+        let camp = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "campaign_capacity", &json!({}), TODAY).unwrap();
         assert!(camp.summary.contains("ID.4 conquest offer") && camp.summary.contains("€35.5M"), "{}", camp.summary);
-        let fin = call_tool(&snap.0, &snap.1, &snap.2, "financing_comparison", &json!({}), TODAY).unwrap();
+        let fin = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "financing_comparison", &json!({}), TODAY).unwrap();
         assert!(fin.summary.contains("loan, 60 months") && fin.summary.contains("Czech"), "{}", fin.summary);
         let r = ask(&snap, "is leasing a Taycan in Prague better than a loan?");
         assert_eq!(r.tool_calls[0].args["model"], "Taycan");
@@ -1525,6 +1726,44 @@ mod tests {
         // a plain commodity question is still a scenario run, and a subsidy question without shocks is unchanged
         assert_eq!(tool_of(&ask(&snap, "what if rubber goes up 15%?")), "run_scenario");
         assert_eq!(tool_of(&ask(&snap, "What if Germany ends the EV subsidy?")), "subsidy_removal");
+    }
+
+    #[test]
+    fn explain_path_gives_a_grounded_chain_with_provenance() {
+        let snap = snap();
+        let out = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, "explain_path", &json!({ "from": "NaturalRubber", "to": "Golf" }), TODAY).unwrap();
+        assert!(out.summary.starts_with("Route 1 for Natural rubber to Golf:"), "{}", out.summary);
+        assert!(out.summary.contains("Key values of Golf") && out.summary.contains("price"), "{}", out.summary);
+        assert!(out.blocks.iter().any(|b| matches!(b, Block::Table { rows, .. } if rows.len() == 4 && rows[0][3].starts_with("asserted in VW_Supply_Abox.ttl"))));
+        let r = ask(&snap, "How does natural rubber affect the Golf?");
+        assert_eq!(r.tool_calls[0].args["from"], "natural rubber");
+        assert_eq!(r.tool_calls[0].args["to"], "golf");
+        // questions that are not about a link between two things keep their old tools
+        assert_eq!(tool_of(&ask(&snap, "Why did the Golf margin drop?")), "margin_trace");
+        assert_eq!(tool_of(&ask(&snap, "explain the ID.4 margin")), "margin_trace");
+        assert_eq!(tool_of(&ask(&snap, "What if rubber goes up 15%?")), "run_scenario");
+    }
+
+    #[test]
+    fn analyses_link_to_the_reasoning_graph_behind_them() {
+        let snap = snap();
+        let link_of = |name: &str, args: Value| {
+            let out = call_tool(&snap.3, &snap.0, &snap.1, &snap.2, name, &args, TODAY).unwrap();
+            out.blocks.iter().find_map(|b| match b {
+                Block::Link { to, .. } if to.starts_with("/graph?pairs=") => Some(to.clone()),
+                _ => None,
+            })
+        };
+        let rubber = link_of("run_scenario", json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }] })).expect("scenario links to its graph");
+        assert!(rubber.contains("Index_NaturalRubber|"), "{rubber}");
+        let bad_year = link_of("combined_scenario", json!({ "shocks": [{ "kind": "fx", "target": "SEK", "percent": 5 }], "subsidy_markets": ["Germany"] })).unwrap();
+        assert!(bad_year.contains("SEK|") && bad_year.contains("Reg_DE_EVSubsidy"), "{bad_year}");
+        assert!(link_of("margin_trace", json!({ "model": "Golf" })).unwrap().contains("Index_"));
+        assert!(link_of("lead_time_impact", json!({ "supplier": "Supplier_BatterySystems" })).unwrap().contains("Supplier_BatterySystems"));
+        assert!(link_of("subsidy_removal", json!({})).unwrap().contains("Reg_DE_EVSubsidy"));
+        assert!(link_of("competitor_price_cut", json!({ "competitor": "Tesla" })).is_some());
+        assert!(link_of("supplier_risk", json!({})).is_some());
+        assert!(link_of("dashboard", json!({})).is_none(), "no graph behind a headline view");
     }
 
     #[test]
