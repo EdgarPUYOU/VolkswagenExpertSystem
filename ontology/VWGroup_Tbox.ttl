@@ -5,7 +5,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # Vehicle T-Box schema. Sales vocabulary is in VW_Sales.ttl.
-# Vehicle instance data is in VWGroup2_data.ttl; portfolio rules are in VW_rules.ttl.
+# Vehicle instance data is in VWGroup_Abox.ttl; portfolio rules are in VWGroup_rules.ttl.
 
 vw:VolkswagenOntology a owl:Ontology ;
     rdfs:label "Volkswagen Group Expert System Ontology" .
@@ -207,8 +207,7 @@ vw:rangeKm a owl:DatatypeProperty ;
     rdfs:domain vw:Model ;
     rdfs:range xsd:integer .
 
-vw:ElectricModel a owl:equivalentClass ;
-    owl:Class [
+vw:ElectricModel owl:equivalentClass [
         a owl:Class ;
         owl:intersectionOf (
             vw:Model
@@ -220,8 +219,7 @@ vw:ElectricModel a owl:equivalentClass ;
         )
     ] .
 
-vw:HybridModel a owl:equivalentClass ;
-    owl:Class [
+vw:HybridModel owl:equivalentClass [
         a owl:Class ;
         owl:intersectionOf (
             vw:Model
@@ -233,8 +231,7 @@ vw:HybridModel a owl:equivalentClass ;
         )
     ] .
 
-vw:CombustionModel a owl:equivalentClass ;
-    owl:Class [
+vw:CombustionModel owl:equivalentClass [
         a owl:Class ;
         owl:intersectionOf (
             vw:Model

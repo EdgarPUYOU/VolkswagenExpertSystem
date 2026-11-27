@@ -1,0 +1,88 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Illustrative market and regulation data. All figures are synthetic and calibrated for the demo.
+
+vw:Market_Germany a vw:Market ; rdfs:label "Germany" ; vw:marketCountry "Germany" ; vw:marketCurrency vw:EUR .
+vw:Market_CzechRepublic a vw:Market ; rdfs:label "Czech Republic" ; vw:marketCountry "Czech Republic" ; vw:marketCurrency vw:CZK .
+vw:Market_France a vw:Market ; rdfs:label "France" ; vw:marketCountry "France" ; vw:marketCurrency vw:EUR .
+vw:Market_Sweden a vw:Market ; rdfs:label "Sweden" ; vw:marketCountry "Sweden" ; vw:marketCurrency vw:SEK .
+vw:Market_USA a vw:Market ; rdfs:label "United States" ; vw:marketCountry "United States" ; vw:marketCurrency vw:USD .
+
+# Regulations
+vw:Reg_EU_CO2 a vw:CO2FleetTarget ; rdfs:label "EU CO2 fleet target (illustrative 120 g/km)" ; vw:targetGramsPerKm 120 ; vw:penaltyEurPerGram 95 ;
+    vw:appliesInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_Sweden .
+vw:Reg_DE_EVSubsidy a vw:EVSubsidy ; rdfs:label "Germany EV purchase subsidy" ; vw:subsidyEur 4500 ;
+    vw:appliesToPowertrain vw:BatteryElectric ; vw:appliesInMarket vw:Market_Germany .
+vw:Reg_FR_EVSubsidy a vw:EVSubsidy ; rdfs:label "France EV bonus" ; vw:subsidyEur 3000 ;
+    vw:appliesToPowertrain vw:BatteryElectric ; vw:appliesInMarket vw:Market_France .
+vw:Reg_US_Tariff a vw:ImportTariff ; rdfs:label "US import tariff on European cars" ; vw:tariffPercent 25 ;
+    vw:appliesInMarket vw:Market_USA .
+
+# Competitors
+vw:Competitor_Tesla a vw:Competitor ; rdfs:label "Tesla" .
+vw:Competitor_BYD a vw:Competitor ; rdfs:label "BYD" .
+vw:Competitor_Mercedes a vw:Competitor ; rdfs:label "Mercedes-Benz" .
+vw:Competitor_BMW a vw:Competitor ; rdfs:label "BMW" .
+vw:Competitor_Toyota a vw:Competitor ; rdfs:label "Toyota" .
+vw:Tesla_ModelY a vw:CompetitorModel ; rdfs:label "Tesla Model Y" ; vw:competitorOf vw:Competitor_Tesla ; vw:priceSegment "ElectricSUV" ; vw:competitorPowertrain vw:BatteryElectric .
+vw:BYD_Atto3 a vw:CompetitorModel ; rdfs:label "BYD Atto 3" ; vw:competitorOf vw:Competitor_BYD ; vw:priceSegment "ElectricSUV" ; vw:competitorPowertrain vw:BatteryElectric .
+vw:Mercedes_EQE_SUV a vw:CompetitorModel ; rdfs:label "Mercedes EQE SUV" ; vw:competitorOf vw:Competitor_Mercedes ; vw:priceSegment "ElectricSUV" ; vw:competitorPowertrain vw:BatteryElectric .
+vw:Tesla_ModelS a vw:CompetitorModel ; rdfs:label "Tesla Model S" ; vw:competitorOf vw:Competitor_Tesla ; vw:priceSegment "ElectricSport" ; vw:competitorPowertrain vw:BatteryElectric .
+vw:Mercedes_CClass a vw:CompetitorModel ; rdfs:label "Mercedes C-Class" ; vw:competitorOf vw:Competitor_Mercedes ; vw:priceSegment "Midsize" ; vw:competitorPowertrain vw:Petrol .
+vw:BMW_3Series a vw:CompetitorModel ; rdfs:label "BMW 3 Series" ; vw:competitorOf vw:Competitor_BMW ; vw:priceSegment "Midsize" ; vw:competitorPowertrain vw:Petrol .
+vw:Toyota_Corolla a vw:CompetitorModel ; rdfs:label "Toyota Corolla" ; vw:competitorOf vw:Competitor_Toyota ; vw:priceSegment "Compact" ; vw:competitorPowertrain vw:Petrol .
+vw:BMW_X3 a vw:CompetitorModel ; rdfs:label "BMW X3" ; vw:competitorOf vw:Competitor_BMW ; vw:priceSegment "PremiumSUV" ; vw:competitorPowertrain vw:Petrol .
+
+# Our models: CO2, segment, markets, rivals
+vw:Golf vw:co2GramsPerKm 118 ;
+    vw:priceSegment "Compact" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_Sweden ;
+    vw:competesWith vw:Toyota_Corolla .
+vw:Passat vw:co2GramsPerKm 124 ;
+    vw:priceSegment "Midsize" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_Sweden ;
+    vw:competesWith vw:BMW_3Series .
+vw:ID4 vw:co2GramsPerKm 0 ;
+    vw:priceSegment "ElectricSUV" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_Sweden, vw:Market_USA ;
+    vw:competesWith vw:Tesla_ModelY, vw:BYD_Atto3 .
+vw:Octavia vw:co2GramsPerKm 120 ;
+    vw:priceSegment "Compact" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_Sweden ;
+    vw:competesWith vw:Toyota_Corolla .
+vw:Enyaq vw:co2GramsPerKm 0 ;
+    vw:priceSegment "ElectricSUV" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_Sweden ;
+    vw:competesWith vw:Tesla_ModelY, vw:BYD_Atto3 .
+vw:911 vw:co2GramsPerKm 215 ;
+    vw:priceSegment "Sport" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_France, vw:Market_USA .
+vw:Taycan vw:co2GramsPerKm 0 ;
+    vw:priceSegment "ElectricSport" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_USA ;
+    vw:competesWith vw:Tesla_ModelS .
+vw:Cayenne vw:co2GramsPerKm 230 ;
+    vw:priceSegment "LuxurySUV" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_France, vw:Market_USA .
+vw:A4 vw:co2GramsPerKm 128 ;
+    vw:priceSegment "Midsize" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_USA ;
+    vw:competesWith vw:Mercedes_CClass, vw:BMW_3Series .
+vw:Q5 vw:co2GramsPerKm 150 ;
+    vw:priceSegment "PremiumSUV" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_USA ;
+    vw:competesWith vw:BMW_X3 .
+vw:e-tron vw:co2GramsPerKm 0 ;
+    vw:priceSegment "ElectricSUV" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_France, vw:Market_USA ;
+    vw:competesWith vw:Mercedes_EQE_SUV, vw:Tesla_ModelY .
+vw:Urus vw:co2GramsPerKm 285 ;
+    vw:priceSegment "LuxurySUV" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_France, vw:Market_USA .
+vw:Huracan vw:co2GramsPerKm 330 ;
+    vw:priceSegment "Sport" ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_France, vw:Market_USA .
+vw:RSeries vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_Sweden .
+vw:TGX vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_Sweden .

@@ -1,0 +1,29 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Exposure vocabulary. Nothing here is asserted in the A-box: rules/40_exposure.ru derives it.
+
+vw:RiskOntology a owl:Ontology ;
+    rdfs:label "Volkswagen Risk and Exposure Ontology" .
+
+vw:CommodityExposedContract a owl:Class ; rdfs:subClassOf vw:SupplyContract ;
+    rdfs:comment "A contract with at least one indexation clause." .
+vw:CommodityExposedModel a owl:Class ; rdfs:subClassOf vw:Model ;
+    rdfs:comment "A model with a component covered by a commodity-exposed contract." .
+vw:CommodityExposedProfitCenter a owl:Class ; rdfs:subClassOf vw:ProfitCenter ;
+    rdfs:comment "A profit center whose brand has a commodity-exposed model." .
+vw:FXExposedContract a owl:Class ; rdfs:subClassOf vw:SupplyContract ;
+    rdfs:comment "A contract priced in a currency other than the reporting currency." .
+vw:SingleSourcedCriticalComponent a owl:Class ; rdfs:subClassOf vw:Component ;
+    rdfs:comment "A component whose only supplier has no qualified alternative." .
+
+vw:exposedToIndex a owl:ObjectProperty ;
+    rdfs:range vw:CommodityIndex ;
+    rdfs:comment "Derived. Domain is a contract, model or profit center." .
+
+vw:exposedToCurrency a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:Currency .

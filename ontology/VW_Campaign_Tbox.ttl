@@ -1,0 +1,16 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Campaigns and financing products. Spend, rates and capacity live in SQLite and join by IRI.
+
+vw:IncentiveCampaign a owl:Class ; rdfs:comment "A marketing or incentive campaign aimed at one model." .
+vw:FinancingProduct a owl:Class .
+vw:Lease a owl:Class ; rdfs:subClassOf vw:FinancingProduct .
+vw:Loan a owl:Class ; rdfs:subClassOf vw:FinancingProduct .
+
+vw:campaignAppliesTo a owl:ObjectProperty ; rdfs:domain vw:IncentiveCampaign ; rdfs:range vw:Model .
+vw:financingFor a owl:ObjectProperty ; rdfs:domain vw:FinancingProduct ; rdfs:range vw:Model .
+vw:offeredInMarket a owl:ObjectProperty ; rdfs:domain vw:FinancingProduct ; rdfs:range vw:Market .

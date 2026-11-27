@@ -1,0 +1,46 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Finance vocabulary: currencies, profit centers, cost elements and commodity indices.
+# Numbers that change over time (index values, FX rates, budgets, actuals, overhead per model)
+# live in SQLite and are joined to these individuals by IRI.
+
+vw:FinanceOntology a owl:Ontology ;
+    rdfs:label "Volkswagen Finance Ontology" ;
+    rdfs:comment "Currencies, profit centers, cost elements and commodity indices." .
+
+vw:Currency a owl:Class .
+vw:ProfitCenter a owl:Class ;
+    rdfs:comment "One profit center per brand." .
+vw:CostElement a owl:Class .
+vw:CommodityIndex a owl:Class ;
+    rdfs:comment "A commodity price index. Monthly values are stored in SQLite." .
+
+vw:currencyCode a owl:DatatypeProperty ;
+    rdfs:domain vw:Currency ;
+    rdfs:range xsd:string .
+
+vw:isReportingCurrency a owl:DatatypeProperty ;
+    rdfs:domain vw:Currency ;
+    rdfs:range xsd:boolean ;
+    rdfs:comment "True for the currency the group reports in." .
+
+vw:indexUnit a owl:DatatypeProperty ;
+    rdfs:domain vw:CommodityIndex ;
+    rdfs:range xsd:string .
+
+vw:indexCurrency a owl:ObjectProperty ;
+    rdfs:domain vw:CommodityIndex ;
+    rdfs:range vw:Currency .
+
+vw:brandProfitCenter a owl:ObjectProperty ;
+    rdfs:domain vw:Brand ;
+    rdfs:range vw:ProfitCenter ;
+    owl:inverseOf vw:profitCenterOfBrand .
+
+vw:profitCenterOfBrand a owl:ObjectProperty ;
+    rdfs:domain vw:ProfitCenter ;
+    rdfs:range vw:Brand .

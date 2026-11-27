@@ -10,7 +10,7 @@ vw:VolumeDiscountAvailable a vw:RenegotiationReason ;
     rdfs:label "Lower-price volume discount tier is available" .
 
 # All suppliers, component costs, contract terms, and production targets below are illustrative.
-# Projected annual component volumes are pooled sums over covered models; recalculate if targets or mappings change.
+# Prices, committed volumes and discount tiers live in SQLite (contract_terms); the projected volume is computed at load time.
 
 # Component categories
 vw:EngineAssembly a vw:ComponentCategory ;
@@ -304,124 +304,79 @@ vw:SupplyContract_01_EA211_15TSI a vw:SupplyContract ;
     vw:contractCoversComponent vw:EA211_15TSI ;
     vw:contractSupplier vw:Supplier_PowertrainWorks ;
     vw:contractIncludesModel vw:Golf, vw:Octavia, vw:Passat ;
-    vw:currentContractedAnnualVolume 525000 ;
-    vw:projectedAnnualComponentVolume 600000 ;
-    vw:discountTierAnnualVolume 580000 ;
-    vw:currentUnitPriceEUR "2200.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "2050.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2027-06-30"^^xsd:date .
 
 vw:SupplyContract_02_ID4ElectricDrive a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for MEB electric drive unit" ;
     vw:contractCoversComponent vw:ID4ElectricDrive ;
     vw:contractSupplier vw:Supplier_ElectricDriveWorks ;
     vw:contractIncludesModel vw:Enyaq, vw:ID4 ;
-    vw:currentContractedAnnualVolume 200000 ;
-    vw:projectedAnnualComponentVolume 265000 ;
-    vw:discountTierAnnualVolume 250000 ;
-    vw:currentUnitPriceEUR "4500.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "4200.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-12-31"^^xsd:date .
 
 vw:SupplyContract_03_Porsche911Engine a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Performance engine assembly" ;
     vw:contractCoversComponent vw:Porsche911Engine ;
     vw:contractSupplier vw:Supplier_PerformanceParts ;
     vw:contractIncludesModel vw:911, vw:Cayenne, vw:Huracan, vw:Urus ;
-    vw:currentContractedAnnualVolume 180000 ;
-    vw:projectedAnnualComponentVolume 172000 ;
-    vw:discountTierAnnualVolume 190000 ;
-    vw:currentUnitPriceEUR "9000.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "8700.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2027-05-31"^^xsd:date .
 
 vw:SupplyContract_04_A4TSI a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Audi engine assembly" ;
     vw:contractCoversComponent vw:A4TSI ;
     vw:contractSupplier vw:Supplier_PowertrainWorks ;
     vw:contractIncludesModel vw:A4, vw:Q5 ;
-    vw:currentContractedAnnualVolume 200000 ;
-    vw:projectedAnnualComponentVolume 230000 ;
-    vw:discountTierAnnualVolume 220000 ;
-    vw:currentUnitPriceEUR "3600.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "3400.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-06-30"^^xsd:date .
 
 vw:SupplyContract_05_ETronElectricDrive a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Premium electric drive unit" ;
     vw:contractCoversComponent vw:ETronElectricDrive ;
     vw:contractSupplier vw:Supplier_ElectricDriveWorks ;
     vw:contractIncludesModel vw:Taycan, vw:e-tron ;
-    vw:currentContractedAnnualVolume 90000 ;
-    vw:projectedAnnualComponentVolume 100000 ;
-    vw:discountTierAnnualVolume 115000 ;
-    vw:currentUnitPriceEUR "5000.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "4800.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-12-31"^^xsd:date .
 
 vw:SupplyContract_06_ScaniaRSeriesEngine a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Heavy-duty diesel engine" ;
     vw:contractCoversComponent vw:ScaniaRSeriesEngine ;
     vw:contractSupplier vw:Supplier_HeavyVehicleSystems ;
     vw:contractIncludesModel vw:RSeries, vw:TGX ;
-    vw:currentContractedAnnualVolume 160000 ;
-    vw:projectedAnnualComponentVolume 175000 ;
-    vw:discountTierAnnualVolume 180000 ;
-    vw:currentUnitPriceEUR "15000.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "14500.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:SEK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2027-03-31"^^xsd:date .
 
 vw:SupplyContract_07_StandardPassengerSeat a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Standard passenger seat set" ;
     vw:contractCoversComponent vw:StandardPassengerSeat ;
     vw:contractSupplier vw:PassengerSeatManufacturer ;
     vw:contractIncludesModel vw:A4, vw:Enyaq, vw:Golf, vw:ID4, vw:Octavia, vw:Passat, vw:Q5, vw:e-tron ;
-    vw:currentContractedAnnualVolume 960000 ;
-    vw:projectedAnnualComponentVolume 1150000 ;
-    vw:discountTierAnnualVolume 1100000 ;
-    vw:currentUnitPriceEUR "450.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "420.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2029-06-30"^^xsd:date .
 
 vw:SupplyContract_08_PerformanceSeat a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Performance seat set" ;
     vw:contractCoversComponent vw:PerformanceSeat ;
     vw:contractSupplier vw:PerformanceSeatManufacturer ;
     vw:contractIncludesModel vw:911, vw:Cayenne, vw:Huracan, vw:Taycan, vw:Urus ;
-    vw:currentContractedAnnualVolume 225000 ;
-    vw:projectedAnnualComponentVolume 217000 ;
-    vw:discountTierAnnualVolume 240000 ;
-    vw:currentUnitPriceEUR "1250.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "1200.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-03-31"^^xsd:date .
 
 vw:SupplyContract_09_CommercialSeat a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Commercial vehicle seat set" ;
     vw:contractCoversComponent vw:CommercialSeat ;
     vw:contractSupplier vw:CommercialSeatManufacturer ;
     vw:contractIncludesModel vw:RSeries, vw:TGX ;
-    vw:currentContractedAnnualVolume 150000 ;
-    vw:projectedAnnualComponentVolume 175000 ;
-    vw:discountTierAnnualVolume 170000 ;
-    vw:currentUnitPriceEUR "700.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "650.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:SEK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
     vw:contractEndDate "2027-12-31"^^xsd:date .
 
@@ -430,208 +385,133 @@ vw:SupplyContract_10_BatteryPack_MEB a vw:SupplyContract ;
     vw:contractCoversComponent vw:BatteryPack_MEB ;
     vw:contractSupplier vw:Supplier_BatterySystems ;
     vw:contractIncludesModel vw:ID4, vw:Enyaq ;
-    vw:currentContractedAnnualVolume 200000 ;
-    vw:projectedAnnualComponentVolume 265000 ;
-    vw:discountTierAnnualVolume 250000 ;
-    vw:currentUnitPriceEUR "7800.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "7400.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2027-09-30"^^xsd:date .
 
 vw:SupplyContract_11_BatteryPack_J1 a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for J1 battery pack" ;
     vw:contractCoversComponent vw:BatteryPack_J1 ;
     vw:contractSupplier vw:Supplier_BatterySystems ;
     vw:contractIncludesModel vw:Taycan ;
-    vw:currentContractedAnnualVolume 42000 ;
-    vw:projectedAnnualComponentVolume 45000 ;
-    vw:discountTierAnnualVolume 50000 ;
-    vw:currentUnitPriceEUR "11000.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "10500.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2029-03-31"^^xsd:date .
 
 vw:SupplyContract_12_BatteryPack_Etron a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for e-tron battery pack" ;
     vw:contractCoversComponent vw:BatteryPack_Etron ;
     vw:contractSupplier vw:Supplier_BatterySystems ;
     vw:contractIncludesModel vw:e-tron ;
-    vw:currentContractedAnnualVolume 50000 ;
-    vw:projectedAnnualComponentVolume 55000 ;
-    vw:discountTierAnnualVolume 60000 ;
-    vw:currentUnitPriceEUR "8500.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "8200.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-09-30"^^xsd:date .
 
 vw:SupplyContract_13_Transmission_Standard a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Standard transmission unit" ;
     vw:contractCoversComponent vw:Transmission_Standard ;
     vw:contractSupplier vw:Supplier_TransmissionSystems ;
     vw:contractIncludesModel vw:Golf, vw:ID4, vw:Passat, vw:Octavia, vw:Enyaq, vw:A4, vw:Q5, vw:e-tron ;
-    vw:currentContractedAnnualVolume 960000 ;
-    vw:projectedAnnualComponentVolume 1150000 ;
-    vw:discountTierAnnualVolume 1100000 ;
-    vw:currentUnitPriceEUR "1400.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "1320.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:CZK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-12-31"^^xsd:date .
 
 vw:SupplyContract_14_Transmission_Performance a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Performance transmission unit" ;
     vw:contractCoversComponent vw:Transmission_Performance ;
     vw:contractSupplier vw:Supplier_TransmissionSystems ;
     vw:contractIncludesModel vw:911, vw:Taycan, vw:Cayenne, vw:Urus, vw:Huracan ;
-    vw:currentContractedAnnualVolume 225000 ;
-    vw:projectedAnnualComponentVolume 217000 ;
-    vw:discountTierAnnualVolume 240000 ;
-    vw:currentUnitPriceEUR "2600.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "2450.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:CZK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2027-08-31"^^xsd:date .
 
 vw:SupplyContract_15_Transmission_HeavyDuty a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Heavy-duty transmission unit" ;
     vw:contractCoversComponent vw:Transmission_HeavyDuty ;
     vw:contractSupplier vw:Supplier_HeavyVehicleSystems ;
     vw:contractIncludesModel vw:RSeries, vw:TGX ;
-    vw:currentContractedAnnualVolume 150000 ;
-    vw:projectedAnnualComponentVolume 175000 ;
-    vw:discountTierAnnualVolume 170000 ;
-    vw:currentUnitPriceEUR "3500.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "3300.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:SEK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2029-12-31"^^xsd:date .
 
 vw:SupplyContract_16_BrakeSystem_Standard a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Standard braking system" ;
     vw:contractCoversComponent vw:BrakeSystem_Standard ;
     vw:contractSupplier vw:Supplier_BrakeSystems ;
     vw:contractIncludesModel vw:Golf, vw:ID4, vw:Passat, vw:Octavia, vw:Enyaq, vw:A4, vw:Q5, vw:e-tron ;
-    vw:currentContractedAnnualVolume 1160000 ;
-    vw:projectedAnnualComponentVolume 1150000 ;
-    vw:discountTierAnnualVolume 1200000 ;
-    vw:currentUnitPriceEUR "700.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "650.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-06-30"^^xsd:date .
 
 vw:SupplyContract_17_BrakeSystem_Performance a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Performance braking system" ;
     vw:contractCoversComponent vw:BrakeSystem_Performance ;
     vw:contractSupplier vw:Supplier_BrakeSystems ;
     vw:contractIncludesModel vw:911, vw:Taycan, vw:Cayenne, vw:Urus, vw:Huracan ;
-    vw:currentContractedAnnualVolume 225000 ;
-    vw:projectedAnnualComponentVolume 217000 ;
-    vw:discountTierAnnualVolume 240000 ;
-    vw:currentUnitPriceEUR "1600.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "1500.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2027-04-30"^^xsd:date .
 
 vw:SupplyContract_18_BrakeSystem_HeavyDuty a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Heavy-duty braking system" ;
     vw:contractCoversComponent vw:BrakeSystem_HeavyDuty ;
     vw:contractSupplier vw:Supplier_HeavyVehicleSystems ;
     vw:contractIncludesModel vw:RSeries, vw:TGX ;
-    vw:currentContractedAnnualVolume 180000 ;
-    vw:projectedAnnualComponentVolume 175000 ;
-    vw:discountTierAnnualVolume 190000 ;
-    vw:currentUnitPriceEUR "2200.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "2050.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:SEK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2029-06-30"^^xsd:date .
 
 vw:SupplyContract_19_Infotainment_Standard a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Standard infotainment unit" ;
     vw:contractCoversComponent vw:Infotainment_Standard ;
     vw:contractSupplier vw:Supplier_InfotainmentSystems ;
     vw:contractIncludesModel vw:Golf, vw:ID4, vw:Passat, vw:Octavia, vw:Enyaq, vw:A4, vw:Q5, vw:e-tron ;
-    vw:currentContractedAnnualVolume 1160000 ;
-    vw:projectedAnnualComponentVolume 1150000 ;
-    vw:discountTierAnnualVolume 1150000 ;
-    vw:currentUnitPriceEUR "900.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "850.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-03-31"^^xsd:date .
 
 vw:SupplyContract_20_Infotainment_Premium a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Premium infotainment unit" ;
     vw:contractCoversComponent vw:Infotainment_Premium ;
     vw:contractSupplier vw:Supplier_InfotainmentSystems ;
     vw:contractIncludesModel vw:911, vw:Taycan, vw:Cayenne, vw:Urus, vw:Huracan ;
-    vw:currentContractedAnnualVolume 225000 ;
-    vw:projectedAnnualComponentVolume 217000 ;
-    vw:discountTierAnnualVolume 240000 ;
-    vw:currentUnitPriceEUR "1800.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "1700.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-12-31"^^xsd:date .
 
 vw:SupplyContract_21_Infotainment_Commercial a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Commercial infotainment unit" ;
     vw:contractCoversComponent vw:Infotainment_Commercial ;
     vw:contractSupplier vw:Supplier_InfotainmentSystems ;
     vw:contractIncludesModel vw:RSeries, vw:TGX ;
-    vw:currentContractedAnnualVolume 150000 ;
-    vw:projectedAnnualComponentVolume 175000 ;
-    vw:discountTierAnnualVolume 170000 ;
-    vw:currentUnitPriceEUR "1200.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "1120.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:EUR ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2027-10-31"^^xsd:date .
 
 vw:SupplyContract_22_TyreSet_Standard a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Standard tyre set" ;
     vw:contractCoversComponent vw:TyreSet_Standard ;
     vw:contractSupplier vw:Supplier_TireSystems ;
     vw:contractIncludesModel vw:Golf, vw:ID4, vw:Passat, vw:Octavia, vw:Enyaq, vw:A4, vw:Q5, vw:e-tron ;
-    vw:currentContractedAnnualVolume 1140000 ;
-    vw:projectedAnnualComponentVolume 1150000 ;
-    vw:discountTierAnnualVolume 1200000 ;
-    vw:currentUnitPriceEUR "600.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "560.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:CZK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2027-03-31"^^xsd:date .
 
 vw:SupplyContract_23_TyreSet_Performance a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Performance tyre set" ;
     vw:contractCoversComponent vw:TyreSet_Performance ;
     vw:contractSupplier vw:Supplier_TireSystems ;
     vw:contractIncludesModel vw:911, vw:Taycan, vw:Cayenne, vw:Urus, vw:Huracan ;
-    vw:currentContractedAnnualVolume 220000 ;
-    vw:projectedAnnualComponentVolume 217000 ;
-    vw:discountTierAnnualVolume 240000 ;
-    vw:currentUnitPriceEUR "1200.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "1100.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:CZK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
-    vw:contractEndDate "2027-12-31"^^xsd:date .
+    vw:contractEndDate "2028-09-30"^^xsd:date .
 
 vw:SupplyContract_24_TyreSet_HeavyDuty a vw:SupplyContract ;
     rdfs:label "Illustrative supply contract for Heavy-duty tyre set" ;
     vw:contractCoversComponent vw:TyreSet_HeavyDuty ;
     vw:contractSupplier vw:Supplier_HeavyVehicleSystems ;
     vw:contractIncludesModel vw:RSeries, vw:TGX ;
-    vw:currentContractedAnnualVolume 160000 ;
-    vw:projectedAnnualComponentVolume 175000 ;
-    vw:discountTierAnnualVolume 180000 ;
-    vw:currentUnitPriceEUR "1800.00"^^xsd:decimal ;
-    vw:discountUnitPriceEUR "1650.00"^^xsd:decimal ;
-    vw:contractCurrency "EUR" ;
+    vw:contractCurrency vw:SEK ;
     vw:contractStartDate "2025-01-01"^^xsd:date ;
     vw:contractEndDate "2027-12-31"^^xsd:date .
 

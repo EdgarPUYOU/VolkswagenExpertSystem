@@ -1,0 +1,14 @@
+# Rust
+app/target/
+
+# Runtime data (SQLite file and any KG cache)
+data/
+
+# GraphDB home (dev only)
+infra/graphdb-home/
+.env
+
+# Editor, OS and tooling noise
+.playwright-mcp/
+.DS_Store
+*.swp

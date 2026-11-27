@@ -4,8 +4,8 @@
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
-# Load with VWGroup2.ttl, VWGroup2_data.ttl, VW_Contracts_data.ttl, and
-# VW_contract_rules.ttl to evaluate the illustrative contract scenario.
+# Load with the VWGroup_* files, VW_Contracts_Abox.ttl, and VW_Contracts_rules.ttl
+# to evaluate the illustrative contract scenario.
 
 vw:ContractsOntology a owl:Ontology ;
     rdfs:label "Volkswagen Component and Supply Contracts Ontology" .
@@ -127,6 +127,7 @@ vw:contractEndDate a owl:DatatypeProperty ;
     rdfs:domain vw:SupplyContract ;
     rdfs:range xsd:date .
 
-vw:contractCurrency a owl:DatatypeProperty ;
+vw:contractCurrency a owl:ObjectProperty ;
     rdfs:domain vw:SupplyContract ;
-    rdfs:range xsd:string .
+    rdfs:range vw:Currency ;
+    rdfs:comment "Currency the contract is invoiced in. The EUR unit prices are the reference value at the contract start rate." .

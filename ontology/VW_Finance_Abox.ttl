@@ -1,0 +1,36 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Illustrative finance data. Index levels, FX rates, budgets and actuals are synthetic (see SQLite seed).
+
+# Currencies. Contracts are priced in the supplier's currency; the group reports in EUR.
+vw:EUR a vw:Currency ; rdfs:label "Euro" ; vw:currencyCode "EUR" ; vw:isReportingCurrency true .
+vw:SEK a vw:Currency ; rdfs:label "Swedish krona" ; vw:currencyCode "SEK" ; vw:isReportingCurrency false .
+vw:CZK a vw:Currency ; rdfs:label "Czech koruna" ; vw:currencyCode "CZK" ; vw:isReportingCurrency false .
+vw:USD a vw:Currency ; rdfs:label "US dollar" ; vw:currencyCode "USD" ; vw:isReportingCurrency false .
+
+# Profit centers, one per brand
+vw:ProfitCenter_Volkswagen a vw:ProfitCenter ; rdfs:label "Volkswagen profit center" ; vw:profitCenterOfBrand vw:Volkswagen .
+vw:ProfitCenter_Skoda a vw:ProfitCenter ; rdfs:label "Skoda profit center" ; vw:profitCenterOfBrand vw:Skoda .
+vw:ProfitCenter_Audi a vw:ProfitCenter ; rdfs:label "Audi profit center" ; vw:profitCenterOfBrand vw:Audi .
+vw:ProfitCenter_Porsche a vw:ProfitCenter ; rdfs:label "Porsche profit center" ; vw:profitCenterOfBrand vw:Porsche .
+vw:ProfitCenter_Lamborghini a vw:ProfitCenter ; rdfs:label "Lamborghini profit center" ; vw:profitCenterOfBrand vw:Lamborghini .
+vw:ProfitCenter_Scania a vw:ProfitCenter ; rdfs:label "Scania profit center" ; vw:profitCenterOfBrand vw:Scania .
+vw:ProfitCenter_MAN a vw:ProfitCenter ; rdfs:label "MAN profit center" ; vw:profitCenterOfBrand vw:MAN .
+
+# Cost elements
+vw:CE_DirectMaterial a vw:CostElement ; rdfs:label "Direct material" .
+vw:CE_Labour a vw:CostElement ; rdfs:label "Labour" .
+vw:CE_Logistics a vw:CostElement ; rdfs:label "Logistics" .
+vw:CE_Warranty a vw:CostElement ; rdfs:label "Warranty" .
+vw:CE_Marketing a vw:CostElement ; rdfs:label "Marketing" .
+
+# Commodity indices (monthly values in SQLite, base 100 in January 2024)
+vw:Index_NaturalRubber a vw:CommodityIndex ; rdfs:label "Natural rubber" ; vw:indexUnit "index, Jan 2024 = 100" ; vw:indexCurrency vw:EUR .
+vw:Index_Steel a vw:CommodityIndex ; rdfs:label "Steel" ; vw:indexUnit "index, Jan 2024 = 100" ; vw:indexCurrency vw:EUR .
+vw:Index_Aluminium a vw:CommodityIndex ; rdfs:label "Aluminium" ; vw:indexUnit "index, Jan 2024 = 100" ; vw:indexCurrency vw:EUR .
+vw:Index_Lithium a vw:CommodityIndex ; rdfs:label "Lithium" ; vw:indexUnit "index, Jan 2024 = 100" ; vw:indexCurrency vw:EUR .
+vw:Index_Copper a vw:CommodityIndex ; rdfs:label "Copper" ; vw:indexUnit "index, Jan 2024 = 100" ; vw:indexCurrency vw:EUR .
+vw:Index_EnergyEU a vw:CommodityIndex ; rdfs:label "Energy (EU)" ; vw:indexUnit "index, Jan 2024 = 100" ; vw:indexCurrency vw:EUR .

@@ -4,7 +4,7 @@
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# Synthetic sales data. Load with VWGroup2.ttl, VW_Sales.ttl, and VW_sales_rules.ttl.
+# Synthetic sales data. Load with the VWGroup_* files, VW_Sales_Tbox.ttl, and VW_sales_rules.ttl.
 # Age, income, and location are coarse profile context, not matching criteria.
 
 # Coarse age bands; no exact customer ages are stored.
