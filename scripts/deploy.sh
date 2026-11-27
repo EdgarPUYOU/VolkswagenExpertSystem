@@ -33,6 +33,12 @@ echo "==> restarting the app"
 "${SSH[@]}" "$HOST" "cd $DIR && $COMPOSE up -d --no-deps app"
 
 echo "==> waiting for the app to answer"
-"${SSH[@]}" "$HOST" 'for i in $(seq 1 30); do curl -sf localhost:8000/api/chat/status >/dev/null && echo "up" && exit 0; sleep 2; done; echo "app did not answer" >&2; exit 1'
+"${SSH[@]}" "$HOST" 'for i in $(seq 1 30); do curl -sf localhost:8000/health >/dev/null && echo "up" && exit 0; sleep 2; done; echo "app did not answer" >&2; exit 1'
+
+echo "==> removing build leftovers"
+# Only this build's residue: dangling images and build cache older than a day.
+# No `volume prune`: the host is shared (mail server, Mailpit) and that would delete their unused volumes too.
+# The app keeps its data in the bind mount ./data, which is not a Docker volume.
+"${SSH[@]}" "$HOST" "sudo docker image prune -f && sudo docker builder prune -f --filter until=24h"
 
 echo "==> done"
