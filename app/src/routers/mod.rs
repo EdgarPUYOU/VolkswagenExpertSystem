@@ -32,6 +32,8 @@ pub struct AppState {
     pub db: Arc<Mutex<rusqlite::Connection>>,
     pub graphs: Arc<Vec<crate::kg::GraphStat>>,
     pub llm: Arc<crate::config::LlmConfig>,
+    /// `None` when login is switched off.
+    pub auth: Option<Arc<crate::auth::Auth>>,
     /// Present only when an API key is configured.
     pub backend: Option<Arc<SdkBackend>>,
 }
@@ -71,8 +73,12 @@ fn today() -> String {
 }
 
 pub fn router(state: AppState) -> Router {
-    Router::new()
+    let open = Router::new()
         .route("/health", get(health))
+        .route("/api/login", post(crate::auth::login))
+        .route("/api/logout", post(crate::auth::logout))
+        .route("/api/me", get(crate::auth::me));
+    let guarded = Router::new()
         .route("/api/kg/graphs", get(graphs))
         .route("/api/models", get(models))
         .route("/api/contracts", get(contracts))
@@ -107,8 +113,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/strategy/sites", get(sites))
         .route("/api/strategy/mix", get(mix))
         .route("/api/strategy/markets", get(strategy_markets))
-        .fallback(web::handler)
-        .with_state(state)
+        .layer(axum::middleware::from_fn_with_state(state.clone(), crate::auth::require));
+    // the web bundle stays public: it holds only the login page and code, no data
+    open.merge(guarded).fallback(web::handler).with_state(state)
 }
 
 async fn health(State(s): State<AppState>) -> Result<Json<Value>, (StatusCode, Json<Value>)> {

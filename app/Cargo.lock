@@ -2514,6 +2514,7 @@ dependencies = [
  "futures-util",
  "mime_guess",
  "oxigraph",
+ "rand 0.10.4",
  "rusqlite",
  "rust-embed",
  "serde",

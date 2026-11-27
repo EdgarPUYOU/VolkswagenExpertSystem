@@ -52,6 +52,14 @@ pub struct Config {
     #[arg(long, env = "AI_MODEL", default_value = "gpt-4o-mini")]
     pub llm_model: String,
 
+    /// Login user name for the web UI.
+    #[arg(long, env = "APP_USER", default_value = "admin")]
+    pub app_user: String,
+
+    /// Login password for the web UI. Leave unset to switch login off (local development only).
+    #[arg(long, env = "APP_PASSWORD", hide_env_values = true)]
+    pub app_password: Option<Secret>,
+
     /// Sent as `reasoning_effort` when set (for example `none`). Some reasoning models refuse function tools unless it is `none`; leave it unset for models that do not take the parameter.
     #[arg(long, env = "AI_REASONING_EFFORT")]
     pub llm_reasoning_effort: Option<String>,
@@ -103,6 +111,8 @@ mod tests {
             llm_base_url: url.into(),
             llm_model: " deepseek-chat ".into(),
             llm_reasoning_effort: Some(" none ".into()),
+            app_user: "admin".into(),
+            app_password: None,
         }
     }
 
