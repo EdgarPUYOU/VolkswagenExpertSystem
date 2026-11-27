@@ -8,6 +8,7 @@
 
 use super::finance::*;
 use super::market::{self, MarketData};
+use super::sales::{self, SalesData};
 use super::questions;
 use anyhow::Result;
 use serde::de::DeserializeOwned;
@@ -274,6 +275,34 @@ pub fn tools() -> Vec<Tool> {
             input_schema: json!({ "type": "object", "properties": { "shift_percent": { "type": "number", "description": "Share of combustion cars moved to electric. Default 10." } } }),
         },
         Tool {
+            name: "lead_pressure",
+            description: "Which high-intent customer leads want models whose margin is under pressure: margin within a buffer of the floor (or below it) or falling over a look-back window.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "floor_percent": { "type": "number", "description": "Margin floor. Default 15." },
+                    "buffer_points": { "type": "number", "description": "How close to the floor counts as pressure. Default 1." },
+                    "months": { "type": "integer", "description": "Look-back window for the margin change. Default 6." }
+                }
+            }),
+        },
+        Tool {
+            name: "campaign_capacity",
+            description: "Which incentive campaigns spend on models already at planned production capacity: extra cars the campaign sells beyond the model's headroom cannot be built, so that share of the spend is wasted.",
+            input_schema: json!({ "type": "object", "properties": { "threshold_percent": { "type": "number", "description": "Utilisation that counts as at capacity. Default 95." } } }),
+        },
+        Tool {
+            name: "financing_comparison",
+            description: "Lease versus loan profitability for a model in a market: profit per contract after funding cost, default and residual risk and subvention. Only products defined in the knowledge graph are compared (Taycan in the Czech Republic).",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "model": { "type": "string", "description": "Model short name. Default Taycan." },
+                    "market": { "type": "string", "description": "Market name. Default Czech Republic (the Prague market)." }
+                }
+            }),
+        },
+        Tool {
             name: "list_entities",
             description: "List the names the other tools accept: models, suppliers, commodity indices or currencies.",
             input_schema: json!({
@@ -334,6 +363,21 @@ struct CompetitorArgs {
 struct MixArgs {
     shift_percent: Option<f64>,
 }
+#[derive(Deserialize, Default)]
+struct PressureArgs {
+    floor_percent: Option<f64>,
+    buffer_points: Option<f64>,
+    months: Option<u32>,
+}
+#[derive(Deserialize, Default)]
+struct CampaignArgs {
+    threshold_percent: Option<f64>,
+}
+#[derive(Deserialize, Default)]
+struct FinancingArgs {
+    model: Option<String>,
+    market: Option<String>,
+}
 #[derive(Deserialize)]
 struct ListArgs {
     kind: String,
@@ -345,7 +389,7 @@ fn link(label: &str, to: &str) -> Block {
 
 // ---------------------------------------------------------------- tool execution
 
-pub fn call_tool(snap: &Snapshot, md: &MarketData, name: &str, args: &Value, today: &str) -> Result<ToolOutput> {
+pub fn call_tool(snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, args: &Value, today: &str) -> Result<ToolOutput> {
     match name {
         "run_scenario" => {
             let a: ScenarioArgs = parse(args)?;
@@ -737,6 +781,69 @@ pub fn call_tool(snap: &Snapshot, md: &MarketData, name: &str, args: &Value, tod
             ];
             Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
         }
+        "lead_pressure" => {
+            let a: PressureArgs = parse(args)?;
+            let r = sales::lead_pressure(snap, md, a.floor_percent.unwrap_or(15.0), a.buffer_points.unwrap_or(1.0), a.months.unwrap_or(6))?;
+            let hot: Vec<String> = r.leads.iter().filter(|l| l.pressure).map(|l| format!("{} wants {} (margin {})", l.customer.replace("Synthetic customer ", ""), l.model, p1(l.margin_pct))).collect();
+            let summary = if r.leads.is_empty() {
+                "There are no high-intent leads.".to_string()
+            } else if hot.is_empty() {
+                format!("{} high-intent lead(s), none on a model under margin pressure (floor {:.0}%, buffer {} points).", r.leads.len(), r.floor_pct, r.buffer_pp)
+            } else {
+                format!("{} of {} high-intent lead(s) want a model under margin pressure (floor {:.0}%, buffer {} points, {} months to {}): {}.", r.pressured_count, r.leads.len(), r.floor_pct, r.buffer_pp, r.months, r.asof, hot.join("; "))
+            };
+            let blocks = vec![
+                Block::Kpis { items: vec![kpi("High-intent leads", r.leads.len().to_string(), None, false), kpi("On pressured models", r.pressured_count.to_string(), Some(format!("floor {:.0}%", r.floor_pct)), r.pressured_count > 0)] },
+                Block::Table {
+                    title: "Leads and the margin of the model they want".into(),
+                    columns: ["Customer", "Model", "Margin", "Change", "Pressure"].map(String::from).to_vec(),
+                    rows: r.leads.iter().map(|l| vec![l.customer.replace("Synthetic customer ", ""), l.model.clone(), p1(l.margin_pct), format!("{} pts", signed(l.margin_change_pp, 2)), if l.pressure { "yes".into() } else { "no".into() }]).collect(),
+                },
+                link("Open Sales and leads", "/sales"),
+            ];
+            Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
+        }
+        "campaign_capacity" => {
+            let a: CampaignArgs = parse(args)?;
+            let r = sales::campaign_capacity(snap, sd, a.threshold_percent.unwrap_or(95.0))?;
+            let full: Vec<String> = r.campaigns.iter().filter(|c| c.at_capacity).map(|c| c.label.clone()).collect();
+            let share = if r.total_spend > 0.0 { r.wasted_spend / r.total_spend * 100.0 } else { 0.0 };
+            let summary = format!(
+                "{} of {} campaign spend ({}) goes to extra cars that cannot be built. {} campaign(s) target models at or above {:.0}% utilisation: {}.",
+                money(r.wasted_spend), money(r.total_spend), p1(share), full.len(), r.threshold_pct, list_names(&full, 6)
+            );
+            let blocks = vec![
+                Block::Kpis { items: vec![kpi("Campaign spend", money(r.total_spend), None, false), kpi("Wasted on full models", money(r.wasted_spend), Some(p1(share)), r.wasted_spend > 0.0)] },
+                Block::Bars { title: "Wasted spend by campaign".into(), unit: "€M".into(), items: r.campaigns.iter().filter(|c| c.wasted_spend > 0.0).map(|c| BarItem { label: c.label.clone(), value: (c.wasted_spend / 1e4).round() / 100.0 }).collect() },
+                Block::Table {
+                    title: "Campaigns against capacity".into(),
+                    columns: ["Campaign", "Spend", "Utilisation", "Headroom", "At capacity", "Wasted"].map(String::from).to_vec(),
+                    rows: r.campaigns.iter().map(|c| vec![c.label.clone(), money(c.spend), p1(c.utilisation_pct), int(c.headroom_units), if c.at_capacity { "yes".into() } else { "no".into() }, money(c.wasted_spend)]).collect(),
+                },
+                link("Open Sales and leads", "/sales"),
+            ];
+            Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
+        }
+        "financing_comparison" => {
+            let a: FinancingArgs = parse(args)?;
+            let r = sales::financing_comparison(snap, md, sd, a.model.as_deref().unwrap_or("Taycan"), a.market.as_deref().unwrap_or("Czech Republic"))?;
+            let top = &r.products[0];
+            let other = if r.best_kind == "Loan" { "lease" } else { "loan" };
+            let summary = format!(
+                "For the {} in {}, {} earns the most: {} per contract ({} of the {} price), {} more than the best {other}.",
+                r.model, r.market, r.best, money(top.profit), p1(top.profit_pct_of_price), money(r.price), money(r.kind_gap)
+            );
+            let blocks = vec![
+                Block::Kpis { items: vec![kpi("Best product", r.best.clone(), Some(format!("{} per contract", money(top.profit))), false), kpi(&format!("Lead over best {other}"), money(r.kind_gap), None, false)] },
+                Block::Table {
+                    title: "Profit per contract".into(),
+                    columns: ["Product", "Rate", "Income", "Funding", "Risk", "Profit"].map(String::from).to_vec(),
+                    rows: r.products.iter().map(|p| vec![p.label.clone(), p1(p.rate_pct), money(p.income), money(p.funding_cost), money(p.risk_cost), money(p.profit)]).collect(),
+                },
+                link("Open Sales and leads", "/sales"),
+            ];
+            Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
+        }
         "list_entities" => {
             let a: ListArgs = parse(args)?;
             let (title, columns, rows): (&str, Vec<&str>, Vec<Vec<String>>) = match a.kind.as_str() {
@@ -926,7 +1033,7 @@ fn find_number_before(lower: &str, unit_words: &[&str]) -> Option<f64> {
 
 const MARKET_WORDS: &[(&str, &str)] = &[
     ("german", "Germany"), ("france", "France"), ("french", "France"), ("czech", "Czech Republic"),
-    ("sweden", "Sweden"), ("swedish", "Sweden"), ("united states", "United States"), ("usa", "United States"),
+    ("sweden", "Sweden"), ("swedish", "Sweden"), ("prague", "Czech Republic"), ("united states", "United States"), ("usa", "United States"),
 ];
 const COMPETITOR_WORDS: &[(&str, &str)] = &[("tesla", "Tesla"), ("byd", "BYD"), ("mercedes", "Mercedes"), ("bmw", "BMW"), ("toyota", "Toyota")];
 
@@ -948,6 +1055,9 @@ pub const SUGGESTIONS: &[&str] = &[
     "What if Tesla cuts prices 10%?",
     "Which brand group depends most on one production site?",
     "Should we shift production toward EVs?",
+    "Which high-intent leads match models under margin pressure?",
+    "Which incentive campaigns spend on models already at capacity?",
+    "Is lease or loan more profitable for Taycan buyers in Prague?",
 ];
 
 fn help_text() -> String {
@@ -957,8 +1067,8 @@ fn help_text() -> String {
     )
 }
 
-fn call(snap: &Snapshot, md: &MarketData, name: &str, args: Value, today: &str, prefix: Option<String>) -> Result<Reply> {
-    let out = call_tool(snap, md, name, &args, today)?;
+fn call(snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, args: Value, today: &str, prefix: Option<String>) -> Result<Reply> {
+    let out = call_tool(snap, md, sd, name, &args, today)?;
     let text = match prefix {
         Some(p) => format!("{p} {}", out.summary),
         None => out.summary,
@@ -967,7 +1077,7 @@ fn call(snap: &Snapshot, md: &MarketData, name: &str, args: Value, today: &str, 
 }
 
 /// Map a sentence to one tool call. Returns help text when nothing matches.
-pub fn plan(snap: &Snapshot, md: &MarketData, message: &str, today: &str) -> Result<Reply> {
+pub fn plan(snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, today: &str) -> Result<Reply> {
     let lower = message.to_lowercase();
     let lower = lower.trim();
 
@@ -983,17 +1093,17 @@ pub fn plan(snap: &Snapshot, md: &MarketData, message: &str, today: &str) -> Res
             } else {
                 find_number_before(lower, &["x", "times"]).unwrap_or(2.0)
             };
-            return call(snap, md, "lead_time_impact", json!({ "supplier": supplier, "factor": factor }), today, None);
+            return call(snap, md, sd, "lead_time_impact", json!({ "supplier": supplier, "factor": factor }), today, None);
         }
         return Ok(Reply { text: "Which supplier? For example: battery, brakes, tyres, transmission, infotainment, electric drive, powertrain.".into(), blocks: vec![], tool_calls: vec![], planner: "rules" });
     }
     if has_any(lower, &["subsid"]) {
         let market = MARKET_WORDS.iter().find(|(w, _)| lower.contains(w)).map_or("Germany", |m| m.1);
-        return call(snap, md, "subsidy_removal", json!({ "market": market }), today, None);
+        return call(snap, md, sd, "subsidy_removal", json!({ "market": market }), today, None);
     }
     if has_any(lower, &["co2", "emission", "fleet target"]) {
         let tighten = first_percent(lower).unwrap_or(10.0);
-        return call(snap, md, "co2_fleet", json!({ "tighten_percent": tighten }), today, None);
+        return call(snap, md, sd, "co2_fleet", json!({ "tighten_percent": tighten }), today, None);
     }
     let rival = COMPETITOR_WORDS.iter().find(|(w, _)| lower.contains(w)).map(|m| m.1);
     if rival.is_some() || has_any(lower, &["competitor", "rival"]) {
@@ -1001,30 +1111,41 @@ pub fn plan(snap: &Snapshot, md: &MarketData, message: &str, today: &str) -> Res
         if let Some(r) = rival {
             args["competitor"] = json!(r);
         }
-        return call(snap, md, "competitor_price_cut", args, today, None);
+        return call(snap, md, sd, "competitor_price_cut", args, today, None);
     }
     if has_any(lower, &["production site", "one site", "single site", "which plant", "site depend", "depends most on"]) {
-        return call(snap, md, "site_dependency", json!({}), today, None);
+        return call(snap, md, sd, "site_dependency", json!({}), today, None);
     }
     if has_any(lower, &["powertrain", "production mix", "shift production", "shift toward", "shift towards", "mix toward", "mix shift"]) {
-        return call(snap, md, "powertrain_mix", json!({ "shift_percent": first_percent(lower).unwrap_or(10.0) }), today, None);
+        return call(snap, md, sd, "powertrain_mix", json!({ "shift_percent": first_percent(lower).unwrap_or(10.0) }), today, None);
+    }
+    if has_any(lower, &["high-intent", "high intent", "hot lead", "leads", "prospect"]) {
+        return call(snap, md, sd, "lead_pressure", json!({}), today, None);
+    }
+    if has_any(lower, &["campaign", "incentive"]) {
+        return call(snap, md, sd, "campaign_capacity", json!({}), today, None);
+    }
+    if has_any(lower, &["lease", "leasing", "loan", "financing"]) {
+        let market = MARKET_WORDS.iter().find(|(w, _)| lower.contains(w)).map_or("Czech Republic", |m| m.1);
+        let model = find_model(snap, message).unwrap_or_else(|| "Taycan".into());
+        return call(snap, md, sd, "financing_comparison", json!({ "model": model, "market": market }), today, None);
     }
     if has_any(lower, &["expire", "expiring", "expiry", "renewal", "renew", "ending", "end soon"]) {
         let months = find_number_before(lower, &["month", "months"])
             .map(|m| m as u32)
             .or_else(|| find_number_before(lower, &["year", "years"]).map(|y| y as u32 * 12))
             .unwrap_or(12);
-        return call(snap, md, "expiring_contracts", json!({ "months": months }), today, None);
+        return call(snap, md, sd, "expiring_contracts", json!({ "months": months }), today, None);
     }
     if has_any(lower, &["single source", "single-source", "single sourced", "single-sourced", "sole source", "no alternative", "second source", "only one supplier"]) {
-        return call(snap, md, "single_sourced_components", json!({}), today, None);
+        return call(snap, md, sd, "single_sourced_components", json!({}), today, None);
     }
     if has_any(lower, &["saving", "savings", "discount", "volume tier"]) {
-        return call(snap, md, "discount_savings", json!({}), today, None);
+        return call(snap, md, sd, "discount_savings", json!({}), today, None);
     }
     let wants_explanation = has_any(lower, &["why", "explain", "margin drop", "margin fall", "margin change", "margin of", "margin for"]);
     if let (true, Some(model)) = (wants_explanation, find_model(snap, message)) {
-        return call(snap, md, "margin_trace", json!({ "model": model }), today, None);
+        return call(snap, md, sd, "margin_trace", json!({ "model": model }), today, None);
     }
 
     let moves = has_any(lower, &["what if", "what happens", "if "]) || words(lower).iter().any(|w| UP.contains(&w.as_str()) || DOWN.contains(&w.as_str()));
@@ -1033,23 +1154,23 @@ pub fn plan(snap: &Snapshot, md: &MarketData, message: &str, today: &str) -> Res
     if !mentions.is_empty() && (has_percent || moves) && !has_any(lower, &["exposure", "exposed", "share of", "how much of"]) {
         let (shocks, assumed) = plan_shocks(lower);
         let prefix = assumed.then(|| "You did not give a size for every move, so I assumed 10%.".to_string());
-        return call(snap, md, "run_scenario", json!({ "shocks": shocks }), today, prefix);
+        return call(snap, md, sd, "run_scenario", json!({ "shocks": shocks }), today, prefix);
     }
 
     if has_any(lower, &["supplier", "suppliers", "depend", "vendor"]) {
-        return call(snap, md, "supplier_risk", json!({}), today, None);
+        return call(snap, md, sd, "supplier_risk", json!({}), today, None);
     }
     if has_any(lower, &["currency", "currencies", "fx", "exchange", "foreign", "krona", "koruna", "sek", "czk"]) {
-        return call(snap, md, "currency_exposure", json!({}), today, None);
+        return call(snap, md, sd, "currency_exposure", json!({}), today, None);
     }
     if has_any(lower, &["sensitiv", "commodity", "commodities", "raw material", "exposed"]) {
-        return call(snap, md, "commodity_sensitivity", json!({}), today, None);
+        return call(snap, md, sd, "commodity_sensitivity", json!({}), today, None);
     }
     if has_any(lower, &["dashboard", "overview", "summary", "kpi", "how are we doing", "headline", "status"]) {
-        return call(snap, md, "dashboard", json!({}), today, None);
+        return call(snap, md, sd, "dashboard", json!({}), today, None);
     }
     if let Some(model) = find_model(snap, message) {
-        return call(snap, md, "margin_trace", json!({ "model": model }), today, None);
+        return call(snap, md, sd, "margin_trace", json!({ "model": model }), today, None);
     }
     Ok(Reply { text: format!("I did not understand that. {}", help_text()), blocks: vec![], tool_calls: vec![], planner: "rules" })
 }
@@ -1062,18 +1183,18 @@ mod tests {
 
     const TODAY: &str = "2026-11-27";
 
-    type World = (Snapshot, MarketData);
+    type World = (Snapshot, MarketData, SalesData);
 
     fn snap() -> World {
         let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
         let mut conn = rusqlite::Connection::open_in_memory().unwrap();
         crate::db::migrate(&mut conn).unwrap();
         crate::seed::seed(&kg, &mut conn).unwrap();
-        (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap())
+        (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap(), SalesData::load(&kg, &conn).unwrap())
     }
 
     fn ask(w: &World, message: &str) -> Reply {
-        plan(&w.0, &w.1, message, TODAY).unwrap()
+        plan(&w.0, &w.1, &w.2, message, TODAY).unwrap()
     }
 
     fn tool_of(r: &Reply) -> &str {
@@ -1123,6 +1244,9 @@ mod tests {
             ("competitor_price_cut", json!({ "competitor": "Tesla", "cut_percent": 10 })),
             ("site_dependency", json!({})),
             ("powertrain_mix", json!({ "shift_percent": 10 })),
+            ("lead_pressure", json!({ "months": 3 })),
+            ("campaign_capacity", json!({ "threshold_percent": 90 })),
+            ("financing_comparison", json!({ "model": "Taycan" })),
             ("list_entities", json!({ "kind": "models" })),
             ("list_entities", json!({ "kind": "markets" })),
             ("list_entities", json!({ "kind": "competitors" })),
@@ -1130,7 +1254,7 @@ mod tests {
         let covered: std::collections::BTreeSet<_> = samples.iter().map(|s| s.0).collect();
         assert_eq!(covered, tools().iter().map(|t| t.name).collect(), "a sample for every tool");
         for (name, args) in samples {
-            let out = call_tool(&snap.0, &snap.1, name, &args, TODAY).unwrap_or_else(|e| panic!("{name}: {e:#}"));
+            let out = call_tool(&snap.0, &snap.1, &snap.2, name, &args, TODAY).unwrap_or_else(|e| panic!("{name}: {e:#}"));
             assert!(!out.summary.is_empty() && !out.blocks.is_empty(), "{name}");
             serde_json::to_string(&out.blocks).unwrap();
         }
@@ -1152,8 +1276,12 @@ mod tests {
             ("co2_fleet", json!({ "tighten_percent": 150 })),
             ("competitor_price_cut", json!({ "competitor": "Ford" })),
             ("powertrain_mix", json!({ "shift_percent": -5 })),
+            ("lead_pressure", json!({ "months": 0 })),
+            ("campaign_capacity", json!({ "threshold_percent": -1 })),
+            ("financing_comparison", json!({ "model": "Golf" })),
+            ("financing_comparison", json!({ "market": "Atlantis" })),
         ] {
-            let err = call_tool(&snap.0, &snap.1, name, &args, TODAY).unwrap_err();
+            let err = call_tool(&snap.0, &snap.1, &snap.2, name, &args, TODAY).unwrap_err();
             assert!(err.downcast_ref::<BadRequest>().is_some(), "{name} {args}: {err:#}");
         }
     }
@@ -1161,7 +1289,7 @@ mod tests {
     #[test]
     fn scenario_summary_states_the_numbers() {
         let snap = snap();
-        let out = call_tool(&snap.0, &snap.1, "run_scenario", &json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }] }), TODAY).unwrap();
+        let out = call_tool(&snap.0, &snap.1, &snap.2, "run_scenario", &json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }] }), TODAY).unwrap();
         assert!(out.summary.contains("Natural rubber +15%"), "{}", out.summary);
         assert!(out.summary.contains("€100.") || out.summary.contains("€101."), "{}", out.summary);
         assert!(out.blocks.iter().any(|b| matches!(b, Block::Link { shocks: Some(s), .. } if s.len() == 1)));
@@ -1170,7 +1298,7 @@ mod tests {
     #[test]
     fn a_shock_nothing_is_priced_on_says_so() {
         let snap = snap();
-        let out = call_tool(&snap.0, &snap.1, "run_scenario", &json!({ "shocks": [{ "kind": "fx", "target": "USD", "percent": 10 }] }), TODAY).unwrap();
+        let out = call_tool(&snap.0, &snap.1, &snap.2, "run_scenario", &json!({ "shocks": [{ "kind": "fx", "target": "USD", "percent": 10 }] }), TODAY).unwrap();
         assert!(out.summary.starts_with("No supply contract is priced off"), "{}", out.summary);
     }
 
@@ -1238,6 +1366,9 @@ mod tests {
             ("Which brand group depends most on one production site?", "site_dependency"),
             ("Should we shift production toward EVs?", "powertrain_mix"),
             ("margin per powertrain", "powertrain_mix"),
+            ("Which high-intent leads match models under margin pressure?", "lead_pressure"),
+            ("Which incentive campaigns spend on models already at capacity?", "campaign_capacity"),
+            ("Is lease or loan more profitable for Taycan buyers in Prague?", "financing_comparison"),
         ];
         for (q, tool) in cases {
             assert_eq!(tool_of(&ask(&snap, q)), tool, "{q}");
@@ -1277,16 +1408,30 @@ mod tests {
     #[test]
     fn market_summaries_state_the_numbers() {
         let snap = snap();
-        let out = call_tool(&snap.0, &snap.1, "subsidy_removal", &json!({ "market": "Germany" }), TODAY).unwrap();
+        let out = call_tool(&snap.0, &snap.1, &snap.2, "subsidy_removal", &json!({ "market": "Germany" }), TODAY).unwrap();
         assert!(out.summary.contains("Enyaq") && out.summary.contains("2 high-intent lead"), "{}", out.summary);
-        let none = call_tool(&snap.0, &snap.1, "subsidy_removal", &json!({ "market": "Sweden" }), TODAY).unwrap();
+        let none = call_tool(&snap.0, &snap.1, &snap.2, "subsidy_removal", &json!({ "market": "Sweden" }), TODAY).unwrap();
         assert!(none.summary.starts_with("No EV subsidy applies in Sweden"), "{}", none.summary);
-        let co2 = call_tool(&snap.0, &snap.1, "co2_fleet", &json!({ "tighten_percent": 10 }), TODAY).unwrap();
+        let co2 = call_tool(&snap.0, &snap.1, &snap.2, "co2_fleet", &json!({ "tighten_percent": 10 }), TODAY).unwrap();
         assert!(co2.summary.contains("Audi") && co2.summary.contains("3 brand"), "{}", co2.summary);
-        let site = call_tool(&snap.0, &snap.1, "site_dependency", &json!({}), TODAY).unwrap();
+        let site = call_tool(&snap.0, &snap.1, &snap.2, "site_dependency", &json!({}), TODAY).unwrap();
         assert!(site.summary.contains("Wolfsburg"), "{}", site.summary);
-        let comp = call_tool(&snap.0, &snap.1, "competitor_price_cut", &json!({ "competitor": "Tesla" }), TODAY).unwrap();
+        let comp = call_tool(&snap.0, &snap.1, &snap.2, "competitor_price_cut", &json!({ "competitor": "Tesla" }), TODAY).unwrap();
         assert!(comp.summary.contains("ID.4") && !comp.summary.contains("Enyaq"), "{}", comp.summary);
+    }
+
+    #[test]
+    fn sales_summaries_state_the_numbers() {
+        let snap = snap();
+        let leads = call_tool(&snap.0, &snap.1, &snap.2, "lead_pressure", &json!({}), TODAY).unwrap();
+        assert!(leads.summary.starts_with("2 of 2 high-intent") && leads.summary.contains("Enyaq"), "{}", leads.summary);
+        let camp = call_tool(&snap.0, &snap.1, &snap.2, "campaign_capacity", &json!({}), TODAY).unwrap();
+        assert!(camp.summary.contains("ID.4 conquest offer") && camp.summary.contains("€35.5M"), "{}", camp.summary);
+        let fin = call_tool(&snap.0, &snap.1, &snap.2, "financing_comparison", &json!({}), TODAY).unwrap();
+        assert!(fin.summary.contains("loan, 60 months") && fin.summary.contains("Czech"), "{}", fin.summary);
+        let r = ask(&snap, "is leasing a Taycan in Prague better than a loan?");
+        assert_eq!(r.tool_calls[0].args["model"], "Taycan");
+        assert_eq!(r.tool_calls[0].args["market"], "Czech Republic");
     }
 
     #[test]

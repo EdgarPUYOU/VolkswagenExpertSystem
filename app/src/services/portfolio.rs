@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn loads_all_modules_into_named_graphs() {
         let (kg, stats) = Kg::load_dir(Path::new("..")).unwrap();
-        assert_eq!(stats.len(), 16, "nine original TTL files plus finance, supply, risk and market modules");
+        assert_eq!(stats.len(), 18, "nine original TTL files plus finance, supply, risk, market and campaign modules");
         assert_eq!(stats.iter().map(|s| s.triples).sum::<usize>(), kg.len().unwrap());
     }
 

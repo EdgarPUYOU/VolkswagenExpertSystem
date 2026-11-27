@@ -9,6 +9,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("001_init", include_str!("../migrations/001_init.sql")),
     ("002_finance", include_str!("../migrations/002_finance.sql")),
     ("003_market", include_str!("../migrations/003_market.sql")),
+    ("004_sales", include_str!("../migrations/004_sales.sql")),
 ];
 
 pub fn open(path: &Path) -> Result<Connection> {

@@ -56,6 +56,25 @@ const COMPETITOR_PRICES: &[(&str, f64)] = &[
     ("Mercedes_CClass", 46000.0), ("BMW_3Series", 44000.0), ("Toyota_Corolla", 27000.0), ("BMW_X3", 56000.0),
 ];
 
+/// Campaign spend and expected extra cars (illustrative).
+const CAMPAIGNS: &[(&str, f64, f64)] = &[
+    ("Campaign_ID4_Conquest", 25e6, 8000.0), ("Campaign_Enyaq_Family", 12e6, 6000.0), ("Campaign_Golf_Loyalty", 20e6, 12000.0),
+    ("Campaign_Taycan_TestDrive", 6e6, 1500.0), ("Campaign_Q5_Winter", 9e6, 5000.0), ("Campaign_Octavia_Fleet", 11e6, 7000.0),
+];
+
+/// Annual capacity as a multiple of planned production. Models not listed get `DEFAULT_CAPACITY_FACTOR`.
+const CAPACITY_FACTOR: &[(&str, f64)] = &[("ID4", 1.0), ("Enyaq", 1.03), ("Taycan", 1.0), ("e-tron", 1.01), ("Golf", 1.12), ("Octavia", 1.15), ("Q5", 1.08)];
+const DEFAULT_CAPACITY_FACTOR: f64 = 1.1;
+
+/// (product, term months, rate, funding cost, default loss, residual, residual risk, subvention, down payment), all percent.
+#[allow(clippy::type_complexity)]
+const FINANCING: &[(&str, i64, f64, f64, f64, f64, f64, f64, f64)] = &[
+    ("Fin_Taycan_Lease36", 36, 6.9, 3.6, 0.6, 58.0, 6.0, 0.5, 0.0),
+    ("Fin_Taycan_Lease48", 48, 6.9, 3.7, 0.7, 50.0, 7.0, 0.5, 0.0),
+    ("Fin_Taycan_Loan48", 48, 6.9, 3.9, 1.4, 0.0, 0.0, 0.0, 20.0),
+    ("Fin_Taycan_Loan60", 60, 7.4, 4.1, 1.9, 0.0, 0.0, 0.0, 20.0),
+];
+
 pub fn month_label(i: usize) -> String {
     format!("{}-{:02}", 2024 + i / 12, i % 12 + 1)
 }
@@ -187,7 +206,7 @@ pub fn seed(kg: &Kg, conn: &mut Connection) -> Result<SeedStats> {
     }
 
     let tx = conn.transaction()?;
-    for table in ["index_values", "fx_rates", "model_cost", "budget", "actuals", "sales_plan", "competitor_prices"] {
+    for table in ["index_values", "fx_rates", "model_cost", "budget", "actuals", "sales_plan", "competitor_prices", "campaign_spend", "model_capacity", "financing_terms"] {
         tx.execute(&format!("DELETE FROM {table}"), [])?;
     }
     for ((iri, month), v) in &index_values {
@@ -211,6 +230,20 @@ pub fn seed(kg: &Kg, conn: &mut Connection) -> Result<SeedStats> {
     for (name, price) in COMPETITOR_PRICES {
         tx.execute("INSERT INTO competitor_prices (competitor_model_iri, price_eur) VALUES (?1, ?2)", params![format!("{NS}{name}"), price])?;
     }
+    for (name, spend, units) in CAMPAIGNS {
+        tx.execute("INSERT INTO campaign_spend (campaign_iri, spend_eur, expected_incremental_units) VALUES (?1, ?2, ?3)", params![format!("{NS}{name}"), spend, units])?;
+    }
+    for m in &snap.models {
+        let factor = CAPACITY_FACTOR.iter().find(|(n, _)| *n == short(&m.iri)).map_or(DEFAULT_CAPACITY_FACTOR, |(_, f)| *f);
+        tx.execute("INSERT INTO model_capacity (model_iri, annual_capacity) VALUES (?1, ?2)", params![m.iri, (m.planned * factor).round()])?;
+    }
+    for (name, term, rate, funding, default, residual, residual_risk, subvention, down) in FINANCING {
+        tx.execute(
+            "INSERT INTO financing_terms (product_iri, term_months, rate_pct, funding_cost_pct, default_loss_pct, residual_pct, residual_risk_pct, subvention_pct, down_payment_pct)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![format!("{NS}{name}"), term, rate, funding, default, residual, residual_risk, subvention, down],
+        )?;
+    }
     tx.commit()?;
 
     Ok(SeedStats {
@@ -225,5 +258,6 @@ pub fn seed(kg: &Kg, conn: &mut Connection) -> Result<SeedStats> {
 pub fn needs_seed(conn: &Connection) -> Result<bool> {
     let n: i64 = conn.query_row("SELECT COUNT(*) FROM index_values", [], |r| r.get(0))?;
     let m: i64 = conn.query_row("SELECT COUNT(*) FROM sales_plan", [], |r| r.get(0))?;
-    Ok(n == 0 || m == 0)
+    let c: i64 = conn.query_row("SELECT COUNT(*) FROM campaign_spend", [], |r| r.get(0))?;
+    Ok(n == 0 || m == 0 || c == 0)
 }

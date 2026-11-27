@@ -6,6 +6,7 @@ use crate::{
         finance::{self, BadRequest, ScenarioRequest, Snapshot},
         market::{self, MarketData},
         portfolio, questions,
+        sales::{self, SalesData},
     },
     web,
 };
@@ -51,6 +52,11 @@ fn market_data(s: &AppState) -> anyhow::Result<(Snapshot, MarketData)> {
     Ok((Snapshot::load(&s.kg, &conn)?, MarketData::load(&s.kg, &conn)?))
 }
 
+fn sales_ctx(s: &AppState) -> anyhow::Result<(Snapshot, MarketData, SalesData)> {
+    let conn = s.db.lock().map_err(|e| anyhow::anyhow!("db lock poisoned: {e}"))?;
+    Ok((Snapshot::load(&s.kg, &conn)?, MarketData::load(&s.kg, &conn)?, SalesData::load(&s.kg, &conn)?))
+}
+
 fn today() -> String {
     chrono::Local::now().format("%Y-%m-%d").to_string()
 }
@@ -78,6 +84,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/suppliers/lead-time", get(lead_time))
         .route("/api/components/single-sourced", get(single_sourced))
         .route("/api/models/{model}/margin-trace", get(margin_trace))
+        .route("/api/sales/leads", get(sales_leads))
+        .route("/api/sales/campaigns", get(sales_campaigns))
+        .route("/api/sales/financing", get(sales_financing))
         .route("/api/strategy/subsidy", get(subsidy))
         .route("/api/strategy/co2", get(co2))
         .route("/api/strategy/competitor", get(competitor))
@@ -257,8 +266,8 @@ async fn dashboard(State(s): State<AppState>) -> ApiResult {
 }
 
 async fn chat(State(s): State<AppState>, Json(req): Json<ChatRequest>) -> ApiResult {
-    let (snap, md) = market_data(&s).map_err(fail)?;
-    Ok(Json(json!(chat::plan(&snap, &md, &req.message, &today()).map_err(fail)?)))
+    let (snap, md, sd) = sales_ctx(&s).map_err(fail)?;
+    Ok(Json(json!(chat::plan(&snap, &md, &sd, &req.message, &today()).map_err(fail)?)))
 }
 
 async fn chat_status() -> Json<Value> {
@@ -270,8 +279,8 @@ async fn chat_tools() -> Json<Value> {
 }
 
 async fn chat_tool(State(s): State<AppState>, Path(name): Path<String>, Json(args): Json<Value>) -> ApiResult {
-    let (snap, md) = market_data(&s).map_err(fail)?;
-    Ok(Json(json!(chat::call_tool(&snap, &md, &name, &args, &today()).map_err(fail)?)))
+    let (snap, md, sd) = sales_ctx(&s).map_err(fail)?;
+    Ok(Json(json!(chat::call_tool(&snap, &md, &sd, &name, &args, &today()).map_err(fail)?)))
 }
 
 #[derive(Deserialize)]
@@ -336,4 +345,38 @@ async fn strategy_markets(State(s): State<AppState>) -> ApiResult {
         "co2": md.co2,
         "competitors": md.rivals.values().map(|r| r.competitor.clone()).collect::<std::collections::BTreeSet<_>>(),
     })))
+}
+
+#[derive(Deserialize)]
+struct LeadParams {
+    floor: Option<f64>,
+    buffer: Option<f64>,
+    months: Option<u32>,
+}
+
+async fn sales_leads(State(s): State<AppState>, Query(p): Query<LeadParams>) -> ApiResult {
+    let (snap, md, _) = sales_ctx(&s).map_err(fail)?;
+    Ok(Json(json!(sales::lead_pressure(&snap, &md, p.floor.unwrap_or(15.0), p.buffer.unwrap_or(1.0), p.months.unwrap_or(6)).map_err(fail)?)))
+}
+
+#[derive(Deserialize)]
+struct CampaignParams {
+    threshold: Option<f64>,
+}
+
+async fn sales_campaigns(State(s): State<AppState>, Query(p): Query<CampaignParams>) -> ApiResult {
+    let (snap, _, sd) = sales_ctx(&s).map_err(fail)?;
+    Ok(Json(json!(sales::campaign_capacity(&snap, &sd, p.threshold.unwrap_or(95.0)).map_err(fail)?)))
+}
+
+#[derive(Deserialize)]
+struct FinancingParams {
+    model: Option<String>,
+    market: Option<String>,
+}
+
+async fn sales_financing(State(s): State<AppState>, Query(p): Query<FinancingParams>) -> ApiResult {
+    let (snap, md, sd) = sales_ctx(&s).map_err(fail)?;
+    let r = sales::financing_comparison(&snap, &md, &sd, p.model.as_deref().unwrap_or("Taycan"), p.market.as_deref().unwrap_or("Czech Republic"));
+    Ok(Json(json!(r.map_err(fail)?)))
 }
