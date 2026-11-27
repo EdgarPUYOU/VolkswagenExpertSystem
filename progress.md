@@ -15,7 +15,7 @@ The full design is in [plan.md](plan.md). This file tracks what is done and what
 | 5. Market, regulation, competitors (Q10 to Q14) | Done: data, rules, API, UI, tests |
 | 6. Sales, campaigns, financing (Q15 to Q17) | Done: data, API, UI, chat tools, tests |
 | 7. Scenarios (Q18) | Done: combined service, saved runs, API, UI, chat tool, tests |
-| 8. Move numeric facts out of the TTL | Not started |
+| 8. Move numeric facts out of the TTL | Done: SQLite is the source, written into the graph at load |
 | 9. Deploy to the VPS | Not started |
 
 Plan sections 1 and 2 (goal and architecture) are implemented. The first demo (scenario lab, explain view, contracts, suppliers, markets) runs end to end.
@@ -103,6 +103,15 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 - Headline result (illustrative): rubber +15%, krona +5% and no German subsidy cost about EUR 488M a year, 2.6% of contribution (EUR 323M extra material cost, EUR 165M lost demand on about 21,400 cars). Scania and MAN take the largest brand hit (about EUR 143M and 107M, all material cost); Enyaq, ID.4 and e-tron are hit mostly by lost demand; the heavy-duty engine contract is first to renegotiate.
 - Assumptions: subsidy elasticity is an input (default 1.5); shocks apply to the latest month's prices; saved runs store the request and result, not the data they ran on.
 
+### Step 8: Numeric facts moved out of the TTL
+
+- Model price, planned production and last-year production, and the contract unit price, committed volume, discount price and discount tier are no longer in the TTL files (165 triples removed from `VWGroup_Abox.ttl` and `VW_Contracts_Abox.ttl`). They live in SQLite (migration 006: `model_facts`, `contract_terms`, filled from the old values).
+- At load, `facts.rs` writes them into a named graph `graph/erp-facts` before the rules run, so the SPARQL rules and every service see the same triples as before. `Kg::load` now takes the database connection.
+- `projectedAnnualComponentVolume` is no longer stored: it is computed (sum of planned production of the models using the component). The computed values equal the old hand-written ones for all 24 contracts.
+- Verified: the 165 facts, the total triple count (3,832) and the headline results (revenue, rubber +15%, 16 of 24 contracts flagged) are identical to before. 64 Rust tests, including one that changes a price in SQLite and checks the graph and the budget rule follow.
+- Contract dates, powertrains, seats and other classifications stay in the TTL.
+- Consequence: loading the TTL files alone (for example into dev GraphDB) no longer gives prices or volumes. Use the app (`vw-erp query`) or add an export of the facts graph if GraphDB browsing needs them.
+
 ### Chat bubble
 
 - "Ask the data" bubble on every page: answers with KPI tiles, tables, bar charts and links, keeps its history across pages and reloads, and its links can open the Scenario lab with the shocks filled in.
@@ -131,7 +140,7 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 ## Next
 
 1. **Connect a language model to the chat** (needs an API key and an HTTP client crate; plan.md section 2.8 lists the steps).
-2. **Step 8**: move numeric facts (price, planned production, contract volumes and prices) out of the TTL into SQLite; then deploy (step 9).
+2. **Step 9**: deploy to the VPS (needs Docker verification first).
 3. Optional: load the same TTL and rules into dev GraphDB with a no-inference ruleset and compare triple counts with the app.
 4. Build the Budget vs actual page (budget and actuals tables are already seeded).
 5. Add a pytest or similar HTTP-level suite against `/api`, and test the Docker setup on a machine with Docker.
@@ -164,7 +173,7 @@ python3 tools/gen_supply_abox.py
 cd web && npm install && npm run dev
 
 # Tests and benchmark
-cd app && cargo test            # 61 tests, run from app/ (reads ../rules and the root TTL files)
+cd app && cargo test            # 64 tests, run from app/ (reads ../rules and the root TTL files)
 cd app && cargo run --release -- bench
 
 # Optional: GraphDB Workbench on http://localhost:7200

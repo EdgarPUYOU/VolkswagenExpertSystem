@@ -303,7 +303,7 @@ A test suite with at least one test per question. Implemented as Rust tests on t
 5. **Market, regulation and competitors.** Covers Q10 to Q14. **Done (section 12).**
 6. **Sales, campaigns and financing.** Covers Q15 to Q17. **Done (section 12).**
 7. **Scenarios.** Covers Q18 and the saved scenario runs. **Done (section 12).**
-8. **Move numeric facts** (price, planned production, contract volumes and prices) out of the TTL into SQLite.
+8. **Move numeric facts** (price, planned production, contract volumes and prices) out of the TTL into SQLite. **Done (section 12).**
 9. **Deploy to the VPS** (can happen earlier, after step 4, to demo online).
 
 Each data step ships its seed data and the matching tests.
@@ -334,7 +334,7 @@ Still open:
 - The Dockerfile and both compose files have been written but not run: Docker is not installed on the development machine. Test them on the VPS or a machine with Docker before relying on them.
 - GraphDB in dev must not use `owl2-rl`, otherwise it shows triples that the app does not have.
 - The site is public once deployed. Keep basic auth on, and do not expose the app port or any KG endpoint directly.
-- The existing `projectedAnnualComponentVolume` values are precomputed by hand and may be stale until computed in SQLite.
+- `projectedAnnualComponentVolume` is computed at load time from planned production (no longer hand-written).
 
 ## 12. Status
 
@@ -374,6 +374,8 @@ Done:
 - **Step 6, sales (Q15 to Q17).** `VW_Campaign_*` TTL, migration 004, `services/sales.rs`, `/api/sales/*`, page "Sales and leads", 3 chat tools (19 in total), 57 tests. Financing is modelled for the Taycan in the Czech market only; all rates are illustrative.
 
 - **Step 7, combined scenario (Q18).** `services/combined.rs`, `/api/scenarios/combined*`, migration 005 (`scenario_runs.kind`), page "Bad year", chat tool `combined_scenario` (20 tools), 61 tests. Saved combined runs can be compared in the Saved runs tab.
+
+- **Step 8, numeric facts in SQLite.** Migration 006 (`model_facts`, `contract_terms`), `facts.rs` writes them into `graph/erp-facts` at load, 165 triples removed from the TTL, projected volume computed; results identical to before; 64 tests. Dev GraphDB loading only the TTL files will not see these numbers.
 
 - **Chat bubble (section 2.8).** 11 tools, a rule-based planner, `/api/chat*` endpoints and the bubble UI. 14 new Rust tests (43 in total) cover the tool catalogue, every tool with sample arguments, bad input (400), and about 40 phrasings, including mixed rises and falls, currency moves, month counts and model names. Checked in a browser: suggestions, typed questions, charts and tables in the conversation, a link that opens the Scenario lab with the shocks filled in, and history that survives a reload. No language model is connected yet.
 
