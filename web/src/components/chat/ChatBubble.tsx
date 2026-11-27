@@ -146,7 +146,7 @@ export function ChatBubble() {
         <div
           role="dialog"
           aria-label="Ask the data"
-          className="bg-card text-card-foreground fixed right-4 bottom-20 z-50 flex h-[min(40rem,calc(100vh-7rem))] w-[min(30rem,calc(100vw-2rem))] flex-col rounded-xl border shadow-xl"
+          className="bg-card text-card-foreground fixed inset-0 z-50 flex flex-col border shadow-xl sm:inset-auto sm:right-4 sm:bottom-20 sm:h-[min(40rem,calc(100dvh-7rem))] sm:w-[min(30rem,calc(100vw-2rem))] sm:rounded-xl"
         >
           <div className="flex items-center justify-between border-b px-3 py-2">
             <div>
@@ -229,7 +229,7 @@ export function ChatBubble() {
         </div>
       )}
       <Button
-        className="fixed right-4 bottom-4 z-50 h-12 rounded-full px-5 shadow-lg"
+        className={`fixed right-4 bottom-4 z-50 h-12 rounded-full px-5 shadow-lg ${open ? 'max-sm:hidden' : ''}`}
         aria-label={open ? 'Close chat' : 'Open chat'}
         onClick={() => setOpen((o) => !o)}
       >

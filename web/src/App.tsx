@@ -7,6 +7,8 @@ import {
   IconFileText,
   IconLayoutDashboard,
   IconLogout,
+  IconMenu2,
+  IconX,
   IconSettings,
   IconShoppingCart,
   IconTimeline,
@@ -15,7 +17,7 @@ import {
 } from '@tabler/icons-react'
 import type { Icon } from '@tabler/icons-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { ChatBubble } from '@/components/chat/ChatBubble'
 import { Separator } from '@/components/ui/separator'
@@ -53,6 +55,7 @@ const nav: { to: string; label: string; icon: Icon }[] = [
 
 export default function App() {
   const qc = useQueryClient()
+  const [menuOpen, setMenuOpen] = useState(false)
   const session = useQuery({ queryKey: ['session'], queryFn: api.me, staleTime: Infinity, retry: false })
 
   // any API call that answers 401 (expired session, server restart) returns to the login page
@@ -62,48 +65,88 @@ export default function App() {
     return () => window.removeEventListener('vw:signed-out', out)
   }, [qc])
 
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
   if (session.isPending) return <p className="text-muted-foreground p-6 text-sm">Loading…</p>
   if (session.data && !session.data.authenticated) return <Login />
 
   const signOut = async () => {
     await api.logout()
-    qc.clear()
-    qc.setQueryData(['session'], { auth_required: true, authenticated: false })
+    // hard reload: drops every cached query and returns to the login page
+    window.location.reload()
   }
 
-  return (
-    <div className="flex min-h-screen">
-      <aside className="bg-sidebar text-sidebar-foreground w-56 shrink-0 border-r p-4">
-        <div className="mb-1 font-semibold">VW Expert System</div>
-        <div className="text-muted-foreground mb-4 text-xs">synthetic demo data</div>
-        <Separator className="mb-4" />
-        <nav className="flex flex-col gap-1">
-          {nav.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.to === '/'}
-              className={({ isActive }) =>
-                cn('flex items-center gap-2 rounded-md px-3 py-2 text-sm', isActive ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/60')
-              }
-            >
-              <n.icon size={18} stroke={1.75} aria-hidden />
-              {n.label}
-            </NavLink>
-          ))}
-        </nav>
-        {session.data?.auth_required && (
+  const sidebar = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+        {nav.map((n) => (
+          <NavLink
+            key={n.to}
+            to={n.to}
+            end={n.to === '/'}
+            onClick={() => setMenuOpen(false)}
+            className={({ isActive }) =>
+              cn('flex items-center gap-2 rounded-md px-3 py-2 text-sm', isActive ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/60')
+            }
+          >
+            <n.icon size={18} stroke={1.75} aria-hidden />
+            {n.label}
+          </NavLink>
+        ))}
+      </nav>
+      {session.data?.auth_required && (
+        <div className="mt-4 shrink-0 border-t pt-3">
+          {session.data.user && <div className="text-muted-foreground mb-1 truncate px-3 text-xs">Signed in as {session.data.user}</div>}
           <button
             type="button"
             onClick={signOut}
-            className="text-muted-foreground hover:bg-sidebar-accent/60 mt-4 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors"
           >
             <IconLogout size={18} stroke={1.75} aria-hidden />
-            Sign out{session.data.user ? ` (${session.data.user})` : ''}
+            Sign out
           </button>
-        )}
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="flex min-h-screen flex-col md:flex-row">
+      {/* mobile top bar */}
+      <header className="bg-sidebar text-sidebar-foreground sticky top-0 z-40 flex items-center justify-between border-b px-4 py-2 md:hidden">
+        <div className="font-semibold">VW Expert System</div>
+        <button
+          type="button"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-nav"
+          onClick={() => setMenuOpen((o) => !o)}
+          className="hover:bg-sidebar-accent/60 rounded-md p-2"
+        >
+          {menuOpen ? <IconX size={20} aria-hidden /> : <IconMenu2 size={20} aria-hidden />}
+        </button>
+      </header>
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setMenuOpen(false)} aria-hidden />
+          <div id="mobile-nav" className="bg-sidebar text-sidebar-foreground fixed inset-x-0 top-[49px] z-30 max-h-[calc(100dvh-49px)] overflow-y-auto border-b p-4 shadow-lg md:hidden">
+            {sidebar}
+          </div>
+        </>
+      )}
+      {/* desktop sidebar */}
+      <aside className="bg-sidebar text-sidebar-foreground sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-hidden border-r p-4 md:flex">
+        <div className="mb-1 font-semibold">VW Expert System</div>
+        <div className="text-muted-foreground mb-4 text-xs">synthetic demo data</div>
+        <Separator className="mb-4" />
+        {sidebar}
       </aside>
-      <main className="min-w-0 flex-1 p-6">
+      <main className="min-w-0 flex-1 p-4 pb-20 md:p-6 md:pb-20">
         <Suspense fallback={<p className="text-muted-foreground text-sm">Loading…</p>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />

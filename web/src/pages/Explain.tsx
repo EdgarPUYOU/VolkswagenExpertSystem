@@ -55,7 +55,7 @@ export default function Explain() {
   return (
     <div className="space-y-6">
       <PageHeader title="Explain a margin" subtitle="Why did a model's margin move? Each cost change is traced through the knowledge graph: model, component, contract, price clause, index.">
-        <div className="flex items-end gap-3">
+        <div className="flex w-full flex-wrap items-end gap-3 sm:w-auto">
           <Field label="Model">
             <select className={fieldClass} value={model} onChange={(e) => navigate(`/explain/${e.target.value}`)}>
               {(models.data ?? []).map((m) => (
