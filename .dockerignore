@@ -1,0 +1,6 @@
+.git
+app/target
+web/node_modules
+web/dist
+data
+infra

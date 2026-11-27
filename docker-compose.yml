@@ -1,0 +1,49 @@
+# Development. The app itself is normally run with `cargo run -- serve` (API, :8000)
+# and `npm run dev` in web/ (UI, :5173, proxies /api). GraphDB is only for browsing
+# the graph in its Workbench; the app does not depend on it.
+#
+#   docker compose up -d graphdb          # GraphDB Workbench on http://localhost:7200
+#   docker compose --profile full up app  # optional: run the production image locally
+#
+# When you create a GraphDB repository, use an EMPTY or RDFS ruleset, never owl2-rl,
+# so GraphDB shows the same triples as the app (plan.md, section 2.2).
+
+services:
+  graphdb:
+    image: ontotext/graphdb:11.5.2
+    container_name: vw-graphdb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7200:7200"
+    volumes:
+      - ./infra/graphdb-home:/opt/graphdb/home
+      # Repo root, read-only: the TTL files appear under Import > Server files.
+      - ./:/root/graphdb-import:ro
+    environment:
+      GDB_JAVA_OPTS: >-
+        -Xmx2g -Xms2g
+        -Dgraphdb.home=/opt/graphdb/home
+
+  app:
+    profiles: ["full"]
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/vw-erp", "healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  sqlite-web:
+    profiles: ["tools"]
+    image: coleifer/sqlite-web
+    command: sqlite_web -H 0.0.0.0 /data/erp.db
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/data
