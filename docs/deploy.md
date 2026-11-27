@@ -13,6 +13,23 @@ make deploy        # reads DEPLOY_HOST and DEPLOY_PATH from .env
 
 `scripts/deploy.sh` checks ssh, copies the working tree with rsync (never `.env`, `data/`, `.git`, `target/` or `node_modules/`), builds the image on the server, restarts the app and waits until `/api/chat/status` answers. It deploys what is on disk, not a commit, so commit first if you want the server and the branch to match. The first build takes about five minutes on 2 vCPUs (Rust compile); later ones reuse cached layers unless `Cargo.toml` changed.
 
+## Automatic deploy on merge
+
+`.github/workflows/ci.yml` runs on every pull request (web build, `cargo test`) and on every push to `main`. After the tests pass, a push to `main` runs the `deploy` job, which calls the same `scripts/deploy.sh`. Deploys run one at a time.
+
+One-time setup in GitHub (Settings, Secrets and variables, Actions):
+
+| Name | Kind | Value |
+|---|---|---|
+| `DEPLOY_HOST` | secret | `user@host` |
+| `DEPLOY_SSH_KEY` | secret | private half of a key made only for CI |
+| `DEPLOY_KNOWN_HOSTS` | secret | output of `ssh-keyscan -t ed25519 host` |
+| `DEPLOY_PATH` | variable, optional | path on the server, default `vw` |
+
+Make the key with `ssh-keygen -t ed25519 -N '' -C github-deploy -f deploy_key`, append `deploy_key.pub` to `~/.ssh/authorized_keys` on the server, put `deploy_key` into the secret and delete the local copy. The key gives CI a shell on the server, so keep it out of anything but the secret, and rotate it by replacing both halves. To require a click before each deploy, add required reviewers to the `production` environment.
+
+Note the deploy copies the merged commit as it is checked out in CI; the server `.env` and `data/` are never touched.
+
 ## First-time setup (server with its own Caddy)
 
 1. **DNS.** An `A` record for the host name pointing at the server IP. On Cloudflare use "DNS only", or Caddy cannot get its certificate.
