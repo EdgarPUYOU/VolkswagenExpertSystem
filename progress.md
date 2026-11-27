@@ -80,7 +80,8 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 - API: `/api/strategy/{subsidy,co2,competitor,sites,mix,markets}`. UI: new page "Markets and regulation" with one tab per question.
 - 7 new Rust tests, 50 in total; clippy clean.
 - Headline results (illustrative): ending the German subsidy at elasticity 1.5 loses about 21,600 cars and EUR 1.09B revenue across ID.4, Enyaq, e-tron and Taycan, and touches Customer 001's two leads; at a 120 g/km target Porsche and Lamborghini already breach, and a 10% tighter target adds Audi (EUR 164M), while Volkswagen and Skoda stay under; a 10% Tesla cut undercuts ID.4, Taycan and e-tron but not Enyaq; Volkswagen Group cars depend 65% on Wolfsburg; shifting 10% of combustion to electric helps Volkswagen, Skoda and Porsche (via lower CO2 penalty) and costs Audi.
-- Assumptions to state when demoing: price elasticities are inputs (defaults 1.5 for subsidy, 0.8 for competitor cut); CO2 target of 120 g/km and EUR 95 per g/km are illustrative; only the first CO2 target is modelled; the chat bubble does not know the new questions yet.
+- Assumptions to state when demoing: price elasticities are inputs (defaults 1.5 for subsidy, 0.8 for competitor cut); CO2 target of 120 g/km and EUR 95 per g/km are illustrative; only the first CO2 target is modelled.
+- Chat: 5 new tools (`subsidy_removal`, `co2_fleet`, `competitor_price_cut`, `site_dependency`, `powertrain_mix`; 16 in total), `list_entities` also lists markets and competitors, planner rules and 5 new suggestions. `call_tool` and `plan` now take `MarketData`. 52 Rust tests.
 - `Makefile` added: `make dev`, `make prod`, `make prod-docker`, `make test` and more (`make help`).
 
 ### Chat bubble
@@ -111,7 +112,7 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 ## Next
 
 1. **Connect a language model to the chat** (needs an API key and an HTTP client crate; plan.md section 2.8 lists the steps).
-2. Add chat tools for Q10 to Q14 (the planner and tool catalogue do not cover them yet), then **step 6** (sales, campaigns, financing, Q15 to Q17).
+2. **Step 6** (sales, campaigns, financing, Q15 to Q17), with matching chat tools.
 3. Optional: load the same TTL and rules into dev GraphDB with a no-inference ruleset and compare triple counts with the app.
 4. Build the Budget vs actual page (budget and actuals tables are already seeded).
 5. Add a pytest or similar HTTP-level suite against `/api`, and test the Docker setup on a machine with Docker.
@@ -144,7 +145,7 @@ python3 tools/gen_supply_abox.py
 cd web && npm install && npm run dev
 
 # Tests and benchmark
-cd app && cargo test            # 50 tests, run from app/ (reads ../rules and the root TTL files)
+cd app && cargo test            # 52 tests, run from app/ (reads ../rules and the root TTL files)
 cd app && cargo run --release -- bench
 
 # Optional: GraphDB Workbench on http://localhost:7200

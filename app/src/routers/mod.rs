@@ -257,8 +257,8 @@ async fn dashboard(State(s): State<AppState>) -> ApiResult {
 }
 
 async fn chat(State(s): State<AppState>, Json(req): Json<ChatRequest>) -> ApiResult {
-    let snap = snapshot(&s).map_err(fail)?;
-    Ok(Json(json!(chat::plan(&snap, &req.message, &today()).map_err(fail)?)))
+    let (snap, md) = market_data(&s).map_err(fail)?;
+    Ok(Json(json!(chat::plan(&snap, &md, &req.message, &today()).map_err(fail)?)))
 }
 
 async fn chat_status() -> Json<Value> {
@@ -270,8 +270,8 @@ async fn chat_tools() -> Json<Value> {
 }
 
 async fn chat_tool(State(s): State<AppState>, Path(name): Path<String>, Json(args): Json<Value>) -> ApiResult {
-    let snap = snapshot(&s).map_err(fail)?;
-    Ok(Json(json!(chat::call_tool(&snap, &name, &args, &today()).map_err(fail)?)))
+    let (snap, md) = market_data(&s).map_err(fail)?;
+    Ok(Json(json!(chat::call_tool(&snap, &md, &name, &args, &today()).map_err(fail)?)))
 }
 
 #[derive(Deserialize)]

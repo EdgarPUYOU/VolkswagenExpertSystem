@@ -7,6 +7,7 @@
 //! nothing else changes. Tools never accept SPARQL or SQL.
 
 use super::finance::*;
+use super::market::{self, MarketData};
 use super::questions;
 use anyhow::Result;
 use serde::de::DeserializeOwned;
@@ -235,11 +236,49 @@ pub fn tools() -> Vec<Tool> {
             input_schema: none(),
         },
         Tool {
+            name: "subsidy_removal",
+            description: "What if a market ends its EV purchase subsidy? Electric models sold there lose demand (elasticity times subsidy over price). Reports units, revenue and contribution lost per model and the high-intent leads in that market who want an affected model. Markets: Germany, France, Czech Republic, Sweden, United States.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "market": { "type": "string", "description": "Market name. Default Germany. Use list_entities with kind 'markets'." },
+                    "elasticity": { "type": "number", "description": "Price elasticity of demand. Default 1.5." }
+                }
+            }),
+        },
+        Tool {
+            name: "co2_fleet",
+            description: "CO2 fleet target position by brand: average g/km of cars sold in the markets the target covers, penalty today and after the target is lowered. Also shows the result if all brands were pooled.",
+            input_schema: json!({ "type": "object", "properties": { "tighten_percent": { "type": "number", "description": "How much the target is lowered, in percent. Default 10." } } }),
+        },
+        Tool {
+            name: "competitor_price_cut",
+            description: "What if a competitor cuts its prices? Our models are exposed when a rival of the same segment ends up priced below them; their volume falls by cross elasticity times the cut. Reports revenue and contribution at risk.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "competitor": { "type": "string", "description": "Competitor name such as Tesla, BYD, Mercedes, BMW, Toyota. Omit for all electric rivals." },
+                    "cut_percent": { "type": "number", "description": "Size of the price cut. Default 10." },
+                    "elasticity": { "type": "number", "description": "Cross elasticity of demand. Default 0.8." }
+                }
+            }),
+        },
+        Tool {
+            name: "site_dependency",
+            description: "Which brand group depends most on one production site: revenue (price times planned production) per group and site, with the share of the largest site.",
+            input_schema: none(),
+        },
+        Tool {
+            name: "powertrain_mix",
+            description: "Contribution margin per powertrain (electric, petrol, diesel) with subsidy and CO2 exposure, and a what-if that moves a share of each brand's combustion cars to its electric models: contribution change and CO2 penalty change.",
+            input_schema: json!({ "type": "object", "properties": { "shift_percent": { "type": "number", "description": "Share of combustion cars moved to electric. Default 10." } } }),
+        },
+        Tool {
             name: "list_entities",
             description: "List the names the other tools accept: models, suppliers, commodity indices or currencies.",
             input_schema: json!({
                 "type": "object",
-                "properties": { "kind": { "type": "string", "enum": ["models", "suppliers", "indices", "currencies"] } },
+                "properties": { "kind": { "type": "string", "enum": ["models", "suppliers", "indices", "currencies", "markets", "competitors"] } },
                 "required": ["kind"]
             }),
         },
@@ -276,6 +315,25 @@ struct TraceArgs {
     from: Option<String>,
     to: Option<String>,
 }
+#[derive(Deserialize, Default)]
+struct SubsidyArgs {
+    market: Option<String>,
+    elasticity: Option<f64>,
+}
+#[derive(Deserialize, Default)]
+struct Co2Args {
+    tighten_percent: Option<f64>,
+}
+#[derive(Deserialize, Default)]
+struct CompetitorArgs {
+    competitor: Option<String>,
+    cut_percent: Option<f64>,
+    elasticity: Option<f64>,
+}
+#[derive(Deserialize, Default)]
+struct MixArgs {
+    shift_percent: Option<f64>,
+}
 #[derive(Deserialize)]
 struct ListArgs {
     kind: String,
@@ -287,7 +345,7 @@ fn link(label: &str, to: &str) -> Block {
 
 // ---------------------------------------------------------------- tool execution
 
-pub fn call_tool(snap: &Snapshot, name: &str, args: &Value, today: &str) -> Result<ToolOutput> {
+pub fn call_tool(snap: &Snapshot, md: &MarketData, name: &str, args: &Value, today: &str) -> Result<ToolOutput> {
     match name {
         "run_scenario" => {
             let a: ScenarioArgs = parse(args)?;
@@ -541,6 +599,144 @@ pub fn call_tool(snap: &Snapshot, name: &str, args: &Value, today: &str) -> Resu
             ];
             Ok(ToolOutput { summary, blocks, data: to_value(&d)? })
         }
+        "subsidy_removal" => {
+            let a: SubsidyArgs = parse(args)?;
+            let r = market::subsidy_removal(snap, md, a.market.as_deref().unwrap_or("Germany"), a.elasticity.unwrap_or(market::DEFAULT_SUBSIDY_ELASTICITY))?;
+            let summary = match r.models.first() {
+                None => format!("No EV subsidy applies in {}, so nothing changes.", r.market),
+                Some(top) => {
+                    let leads: Vec<String> = r.leads.iter().map(|l| format!("{} ({})", l.customer.replace("Synthetic customer ", ""), l.model)).collect();
+                    format!(
+                        "Ending the subsidy in {} (elasticity {}) cuts demand for {} model(s): about {} cars, {} revenue and {} contribution a year. Biggest hit: {} ({}). {} high-intent lead(s) affected{}.",
+                        r.market, r.elasticity, r.models.len(), int(r.lost_units), money(r.lost_revenue), money(r.lost_contribution),
+                        top.label, money(top.lost_revenue), r.leads.len(), if leads.is_empty() { String::new() } else { format!(": {}", leads.join("; ")) }
+                    )
+                }
+            };
+            let mut blocks = vec![Block::Kpis { items: vec![
+                kpi("Cars lost / year", int(r.lost_units), Some(format!("in {}", r.market)), r.lost_units > 0.0),
+                kpi("Revenue lost", money(r.lost_revenue), None, r.lost_revenue > 0.0),
+                kpi("Contribution lost", money(r.lost_contribution), None, r.lost_contribution > 0.0),
+            ] }];
+            if !r.models.is_empty() {
+                blocks.push(Block::Bars { title: "Revenue lost by model".into(), unit: "€M".into(), items: r.models.iter().map(|m| BarItem { label: m.label.clone(), value: (m.lost_revenue / 1e4).round() / 100.0 }).collect() });
+                blocks.push(Block::Table {
+                    title: "Affected models".into(),
+                    columns: ["Model", "Subsidy", "Demand lost", "Cars lost", "Revenue lost"].map(String::from).to_vec(),
+                    rows: r.models.iter().map(|m| vec![m.label.clone(), money(m.subsidy_eur), p1(m.demand_loss_pct), int(m.lost_units), money(m.lost_revenue)]).collect(),
+                });
+            }
+            blocks.push(link("Open Markets and regulation", "/strategy"));
+            Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
+        }
+        "co2_fleet" => {
+            let a: Co2Args = parse(args)?;
+            let tighten = a.tighten_percent.unwrap_or(10.0);
+            let r = market::co2_fleet(snap, md, tighten)?;
+            let today_breach: Vec<String> = r.brands.iter().filter(|b| b.penalty_now > 0.0).map(|b| b.label.clone()).collect();
+            let new_breach: Vec<String> = r.brands.iter().filter(|b| b.breaches_new).map(|b| b.label.clone()).collect();
+            let total_new: f64 = r.brands.iter().map(|b| b.penalty_new).sum();
+            let summary = format!(
+                "Lowering the CO2 target {:.0}% (from {:.0} to {:.1} g/km) leaves {} brand(s) in breach: {}. Brand penalties total {} a year (EUR {} per g/km per car); today's breaches: {}. Pooled as one fleet the group's penalty would be {}.",
+                tighten, r.target_now, r.target_new, new_breach.len(), list_names(&new_breach, 6), money(total_new), r.penalty_per_gram, list_names(&today_breach, 6), money(r.pooled.penalty_new)
+            );
+            let blocks = vec![
+                Block::Kpis { items: vec![
+                    kpi("Brands in breach today", today_breach.len().to_string(), Some(format!("target {:.0} g/km", r.target_now)), !today_breach.is_empty()),
+                    kpi("Brands in breach at new target", new_breach.len().to_string(), Some(format!("target {:.1} g/km", r.target_new)), !new_breach.is_empty()),
+                    kpi("Penalty at new target", money(total_new), Some(format!("pooled: {}", money(r.pooled.penalty_new))), total_new > 0.0),
+                ] },
+                Block::Table {
+                    title: "CO2 fleet by brand".into(),
+                    columns: ["Brand", "Fleet g/km", "Penalty today", "Penalty at new target"].map(String::from).to_vec(),
+                    rows: r.brands.iter().map(|b| vec![b.label.clone(), format!("{:.1}", b.avg_g_per_km), money(b.penalty_now), money(b.penalty_new)]).collect(),
+                },
+                link("Open Markets and regulation", "/strategy"),
+            ];
+            Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
+        }
+        "competitor_price_cut" => {
+            let a: CompetitorArgs = parse(args)?;
+            let cut = a.cut_percent.unwrap_or(10.0);
+            let r = market::competitor_cut(snap, md, a.competitor.as_deref(), cut, a.elasticity.unwrap_or(market::DEFAULT_CROSS_ELASTICITY))?;
+            let mut hit: Vec<String> = r.hits.iter().filter(|h| h.undercut).map(|h| h.model.clone()).collect();
+            hit.sort();
+            hit.dedup();
+            let summary = if hit.is_empty() {
+                format!("If {} cut prices by {}%, none of our models ends up priced above a rival, so nothing is at risk.", r.competitor, cut)
+            } else {
+                format!(
+                    "If {} cut prices by {}%, {} of our models would be undercut: {}. That puts {} of revenue and {} of contribution at risk (cross elasticity {}).",
+                    r.competitor, cut, hit.len(), list_names(&hit, 6), money(r.revenue_at_risk), money(r.contribution_at_risk), r.elasticity
+                )
+            };
+            let blocks = vec![
+                Block::Kpis { items: vec![
+                    kpi("Revenue exposed", money(r.revenue_exposed), Some(format!("{} model(s) undercut", hit.len())), r.revenue_exposed > 0.0),
+                    kpi("Revenue at risk", money(r.revenue_at_risk), None, r.revenue_at_risk > 0.0),
+                    kpi("Contribution at risk", money(r.contribution_at_risk), None, r.contribution_at_risk > 0.0),
+                ] },
+                Block::Table {
+                    title: "Our models against the rivals".into(),
+                    columns: ["Model", "Rival", "Our price", "Rival after cut", "Undercut", "Revenue at risk"].map(String::from).to_vec(),
+                    rows: r.hits.iter().map(|h| vec![h.model.clone(), h.rival.clone(), money(h.our_price), money(h.rival_price_after), if h.undercut { "yes".into() } else { "no".into() }, money(h.revenue_at_risk)]).collect(),
+                },
+                link("Open Markets and regulation", "/strategy"),
+            ];
+            Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
+        }
+        "site_dependency" => {
+            let groups = market::site_dependency(snap, md);
+            let summary = match groups.first() {
+                Some(g) => format!(
+                    "{} depends most on one site: {} of its {} revenue is built at {}.{}",
+                    g.group, p1(g.top_share_pct), money(g.revenue), g.top_site,
+                    groups.get(1).map(|n| format!(" Next: {} at {} ({}).", n.group, n.top_site, p1(n.top_share_pct))).unwrap_or_default()
+                ),
+                None => "No brand group has production sites in the knowledge graph.".into(),
+            };
+            let blocks = vec![
+                Block::Bars { title: "Share of group revenue at its largest site".into(), unit: "%".into(), items: groups.iter().map(|g| BarItem { label: g.group.clone(), value: (g.top_share_pct * 10.0).round() / 10.0 }).collect() },
+                Block::Table {
+                    title: "Revenue by group and site".into(),
+                    columns: ["Group", "Site", "Brand", "Revenue", "Share"].map(String::from).to_vec(),
+                    rows: groups.iter().flat_map(|g| g.sites.iter().map(move |x| vec![g.group.clone(), x.site.clone(), x.brand.clone(), money(x.revenue), p1(x.share_pct)])).collect(),
+                },
+                link("Open Markets and regulation", "/strategy"),
+            ];
+            Ok(ToolOutput { summary, blocks, data: to_value(&groups)? })
+        }
+        "powertrain_mix" => {
+            let a: MixArgs = parse(args)?;
+            let shift = a.shift_percent.unwrap_or(10.0);
+            let r = market::mix_analysis(snap, md, shift)?;
+            let margins = r.powertrains.iter().map(|p| format!("{} {}", p.powertrain, p1(p.margin_pct))).collect::<Vec<_>>().join(", ");
+            let change: f64 = r.shifts.iter().map(|x| x.contribution_change).sum();
+            let net: f64 = r.shifts.iter().map(|x| x.net_change).sum();
+            let best = r.shifts.first().map(|x| format!(" Best for {} ({}).", x.brand, money(x.net_change))).unwrap_or_default();
+            let summary = format!(
+                "Contribution margin by powertrain: {margins}. Moving {}% of combustion cars to electric changes contribution by {} and, after CO2 penalties, nets {} across {} brand(s).{best}",
+                shift, money(change), money(net), r.shifts.len()
+            );
+            let blocks = vec![
+                Block::Kpis { items: vec![
+                    kpi("Contribution change", money(change), Some(format!("{shift}% of combustion cars moved")), change < 0.0),
+                    kpi("Net of CO2 penalties", money(net), None, net < 0.0),
+                ] },
+                Block::Table {
+                    title: "Margin by powertrain".into(),
+                    columns: ["Powertrain", "Models", "Units", "Margin", "Per unit"].map(String::from).to_vec(),
+                    rows: r.powertrains.iter().map(|p| vec![p.powertrain.clone(), p.models.to_string(), int(p.units), p1(p.margin_pct), money(p.contribution_per_unit)]).collect(),
+                },
+                Block::Table {
+                    title: "Shift by brand".into(),
+                    columns: ["Brand", "Cars moved", "Contribution", "CO2 penalty change", "Net"].map(String::from).to_vec(),
+                    rows: r.shifts.iter().map(|x| vec![x.brand.clone(), int(x.moved_units), money(x.contribution_change), money(x.co2_penalty_after - x.co2_penalty_before), money(x.net_change)]).collect(),
+                },
+                link("Open Markets and regulation", "/strategy"),
+            ];
+            Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
+        }
         "list_entities" => {
             let a: ListArgs = parse(args)?;
             let (title, columns, rows): (&str, Vec<&str>, Vec<Vec<String>>) = match a.kind.as_str() {
@@ -552,7 +748,12 @@ pub fn call_tool(snap: &Snapshot, name: &str, args: &Value, today: &str) -> Resu
                 }
                 "indices" => ("Commodity indices", vec!["Name for tools", "Index"], snap.index_labels.iter().map(|(i, l)| vec![short(i), l.clone()]).collect()),
                 "currencies" => ("Currencies", vec!["Name for tools", "Currency"], snap.currency_codes.iter().map(|(i, c)| vec![short(i), c.clone()]).collect()),
-                other => return bad(format!("unknown kind '{other}', expected models, suppliers, indices or currencies")),
+                "markets" => ("Markets", vec!["Name for tools", "Market"], md.markets.values().map(|m| vec![m.country.clone(), m.label.clone()]).collect()),
+                "competitors" => {
+                    let names: std::collections::BTreeSet<_> = md.rivals.values().map(|r| r.competitor.clone()).collect();
+                    ("Competitors", vec!["Name for tools", "Competitor"], names.into_iter().map(|n| vec![n.clone(), n]).collect())
+                }
+                other => return bad(format!("unknown kind '{other}', expected models, suppliers, indices, currencies, markets or competitors")),
             };
             let summary = format!("{} {} are known: {}.", rows.len(), a.kind, list_names(&rows.iter().map(|r| r[0].clone()).collect::<Vec<_>>(), 20));
             let blocks = vec![Block::Table { title: title.into(), columns: columns.into_iter().map(String::from).collect(), rows: rows.clone() }];
@@ -723,6 +924,16 @@ fn find_number_before(lower: &str, unit_words: &[&str]) -> Option<f64> {
         .find_map(|(i, _)| ws[i - 1].parse::<f64>().ok())
 }
 
+const MARKET_WORDS: &[(&str, &str)] = &[
+    ("german", "Germany"), ("france", "France"), ("french", "France"), ("czech", "Czech Republic"),
+    ("sweden", "Sweden"), ("swedish", "Sweden"), ("united states", "United States"), ("usa", "United States"),
+];
+const COMPETITOR_WORDS: &[(&str, &str)] = &[("tesla", "Tesla"), ("byd", "BYD"), ("mercedes", "Mercedes"), ("bmw", "BMW"), ("toyota", "Toyota")];
+
+fn first_percent(lower: &str) -> Option<f64> {
+    find_percents(lower).first().map(|p| p.1.abs())
+}
+
 pub const SUGGESTIONS: &[&str] = &[
     "What if rubber goes up 15%?",
     "Which models fall below 15% margin if steel rises 10% and aluminium 8%?",
@@ -732,6 +943,11 @@ pub const SUGGESTIONS: &[&str] = &[
     "Which parts have a single source?",
     "How much of our spend is in foreign currency?",
     "Which suppliers do we depend on most?",
+    "What if Germany ends the EV subsidy?",
+    "What if the EU tightens the CO2 target by 10%?",
+    "What if Tesla cuts prices 10%?",
+    "Which brand group depends most on one production site?",
+    "Should we shift production toward EVs?",
 ];
 
 fn help_text() -> String {
@@ -741,8 +957,8 @@ fn help_text() -> String {
     )
 }
 
-fn call(snap: &Snapshot, name: &str, args: Value, today: &str, prefix: Option<String>) -> Result<Reply> {
-    let out = call_tool(snap, name, &args, today)?;
+fn call(snap: &Snapshot, md: &MarketData, name: &str, args: Value, today: &str, prefix: Option<String>) -> Result<Reply> {
+    let out = call_tool(snap, md, name, &args, today)?;
     let text = match prefix {
         Some(p) => format!("{p} {}", out.summary),
         None => out.summary,
@@ -751,7 +967,7 @@ fn call(snap: &Snapshot, name: &str, args: Value, today: &str, prefix: Option<St
 }
 
 /// Map a sentence to one tool call. Returns help text when nothing matches.
-pub fn plan(snap: &Snapshot, message: &str, today: &str) -> Result<Reply> {
+pub fn plan(snap: &Snapshot, md: &MarketData, message: &str, today: &str) -> Result<Reply> {
     let lower = message.to_lowercase();
     let lower = lower.trim();
 
@@ -767,26 +983,48 @@ pub fn plan(snap: &Snapshot, message: &str, today: &str) -> Result<Reply> {
             } else {
                 find_number_before(lower, &["x", "times"]).unwrap_or(2.0)
             };
-            return call(snap, "lead_time_impact", json!({ "supplier": supplier, "factor": factor }), today, None);
+            return call(snap, md, "lead_time_impact", json!({ "supplier": supplier, "factor": factor }), today, None);
         }
         return Ok(Reply { text: "Which supplier? For example: battery, brakes, tyres, transmission, infotainment, electric drive, powertrain.".into(), blocks: vec![], tool_calls: vec![], planner: "rules" });
+    }
+    if has_any(lower, &["subsid"]) {
+        let market = MARKET_WORDS.iter().find(|(w, _)| lower.contains(w)).map_or("Germany", |m| m.1);
+        return call(snap, md, "subsidy_removal", json!({ "market": market }), today, None);
+    }
+    if has_any(lower, &["co2", "emission", "fleet target"]) {
+        let tighten = first_percent(lower).unwrap_or(10.0);
+        return call(snap, md, "co2_fleet", json!({ "tighten_percent": tighten }), today, None);
+    }
+    let rival = COMPETITOR_WORDS.iter().find(|(w, _)| lower.contains(w)).map(|m| m.1);
+    if rival.is_some() || has_any(lower, &["competitor", "rival"]) {
+        let mut args = json!({ "cut_percent": first_percent(lower).unwrap_or(10.0) });
+        if let Some(r) = rival {
+            args["competitor"] = json!(r);
+        }
+        return call(snap, md, "competitor_price_cut", args, today, None);
+    }
+    if has_any(lower, &["production site", "one site", "single site", "which plant", "site depend", "depends most on"]) {
+        return call(snap, md, "site_dependency", json!({}), today, None);
+    }
+    if has_any(lower, &["powertrain", "production mix", "shift production", "shift toward", "shift towards", "mix toward", "mix shift"]) {
+        return call(snap, md, "powertrain_mix", json!({ "shift_percent": first_percent(lower).unwrap_or(10.0) }), today, None);
     }
     if has_any(lower, &["expire", "expiring", "expiry", "renewal", "renew", "ending", "end soon"]) {
         let months = find_number_before(lower, &["month", "months"])
             .map(|m| m as u32)
             .or_else(|| find_number_before(lower, &["year", "years"]).map(|y| y as u32 * 12))
             .unwrap_or(12);
-        return call(snap, "expiring_contracts", json!({ "months": months }), today, None);
+        return call(snap, md, "expiring_contracts", json!({ "months": months }), today, None);
     }
     if has_any(lower, &["single source", "single-source", "single sourced", "single-sourced", "sole source", "no alternative", "second source", "only one supplier"]) {
-        return call(snap, "single_sourced_components", json!({}), today, None);
+        return call(snap, md, "single_sourced_components", json!({}), today, None);
     }
     if has_any(lower, &["saving", "savings", "discount", "volume tier"]) {
-        return call(snap, "discount_savings", json!({}), today, None);
+        return call(snap, md, "discount_savings", json!({}), today, None);
     }
     let wants_explanation = has_any(lower, &["why", "explain", "margin drop", "margin fall", "margin change", "margin of", "margin for"]);
     if let (true, Some(model)) = (wants_explanation, find_model(snap, message)) {
-        return call(snap, "margin_trace", json!({ "model": model }), today, None);
+        return call(snap, md, "margin_trace", json!({ "model": model }), today, None);
     }
 
     let moves = has_any(lower, &["what if", "what happens", "if "]) || words(lower).iter().any(|w| UP.contains(&w.as_str()) || DOWN.contains(&w.as_str()));
@@ -795,23 +1033,23 @@ pub fn plan(snap: &Snapshot, message: &str, today: &str) -> Result<Reply> {
     if !mentions.is_empty() && (has_percent || moves) && !has_any(lower, &["exposure", "exposed", "share of", "how much of"]) {
         let (shocks, assumed) = plan_shocks(lower);
         let prefix = assumed.then(|| "You did not give a size for every move, so I assumed 10%.".to_string());
-        return call(snap, "run_scenario", json!({ "shocks": shocks }), today, prefix);
+        return call(snap, md, "run_scenario", json!({ "shocks": shocks }), today, prefix);
     }
 
     if has_any(lower, &["supplier", "suppliers", "depend", "vendor"]) {
-        return call(snap, "supplier_risk", json!({}), today, None);
+        return call(snap, md, "supplier_risk", json!({}), today, None);
     }
     if has_any(lower, &["currency", "currencies", "fx", "exchange", "foreign", "krona", "koruna", "sek", "czk"]) {
-        return call(snap, "currency_exposure", json!({}), today, None);
+        return call(snap, md, "currency_exposure", json!({}), today, None);
     }
     if has_any(lower, &["sensitiv", "commodity", "commodities", "raw material", "exposed"]) {
-        return call(snap, "commodity_sensitivity", json!({}), today, None);
+        return call(snap, md, "commodity_sensitivity", json!({}), today, None);
     }
     if has_any(lower, &["dashboard", "overview", "summary", "kpi", "how are we doing", "headline", "status"]) {
-        return call(snap, "dashboard", json!({}), today, None);
+        return call(snap, md, "dashboard", json!({}), today, None);
     }
     if let Some(model) = find_model(snap, message) {
-        return call(snap, "margin_trace", json!({ "model": model }), today, None);
+        return call(snap, md, "margin_trace", json!({ "model": model }), today, None);
     }
     Ok(Reply { text: format!("I did not understand that. {}", help_text()), blocks: vec![], tool_calls: vec![], planner: "rules" })
 }
@@ -824,16 +1062,18 @@ mod tests {
 
     const TODAY: &str = "2026-11-27";
 
-    fn snap() -> Snapshot {
+    type World = (Snapshot, MarketData);
+
+    fn snap() -> World {
         let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules")).unwrap();
         let mut conn = rusqlite::Connection::open_in_memory().unwrap();
         crate::db::migrate(&mut conn).unwrap();
         crate::seed::seed(&kg, &mut conn).unwrap();
-        Snapshot::load(&kg, &conn).unwrap()
+        (Snapshot::load(&kg, &conn).unwrap(), MarketData::load(&kg, &conn).unwrap())
     }
 
-    fn ask(snap: &Snapshot, message: &str) -> Reply {
-        plan(snap, message, TODAY).unwrap()
+    fn ask(w: &World, message: &str) -> Reply {
+        plan(&w.0, &w.1, message, TODAY).unwrap()
     }
 
     fn tool_of(r: &Reply) -> &str {
@@ -878,12 +1118,19 @@ mod tests {
             ("lead_time_impact", json!({ "supplier": "Supplier_BatterySystems" })),
             ("margin_trace", json!({ "model": "Golf" })),
             ("dashboard", json!({})),
+            ("subsidy_removal", json!({ "market": "Germany" })),
+            ("co2_fleet", json!({ "tighten_percent": 10 })),
+            ("competitor_price_cut", json!({ "competitor": "Tesla", "cut_percent": 10 })),
+            ("site_dependency", json!({})),
+            ("powertrain_mix", json!({ "shift_percent": 10 })),
             ("list_entities", json!({ "kind": "models" })),
+            ("list_entities", json!({ "kind": "markets" })),
+            ("list_entities", json!({ "kind": "competitors" })),
         ];
         let covered: std::collections::BTreeSet<_> = samples.iter().map(|s| s.0).collect();
         assert_eq!(covered, tools().iter().map(|t| t.name).collect(), "a sample for every tool");
         for (name, args) in samples {
-            let out = call_tool(&snap, name, &args, TODAY).unwrap_or_else(|e| panic!("{name}: {e:#}"));
+            let out = call_tool(&snap.0, &snap.1, name, &args, TODAY).unwrap_or_else(|e| panic!("{name}: {e:#}"));
             assert!(!out.summary.is_empty() && !out.blocks.is_empty(), "{name}");
             serde_json::to_string(&out.blocks).unwrap();
         }
@@ -901,8 +1148,12 @@ mod tests {
             ("margin_trace", json!({ "model": "Nope" })),
             ("list_entities", json!({ "kind": "planets" })),
             ("expiring_contracts", json!({ "months": "soon" })),
+            ("subsidy_removal", json!({ "market": "Atlantis" })),
+            ("co2_fleet", json!({ "tighten_percent": 150 })),
+            ("competitor_price_cut", json!({ "competitor": "Ford" })),
+            ("powertrain_mix", json!({ "shift_percent": -5 })),
         ] {
-            let err = call_tool(&snap, name, &args, TODAY).unwrap_err();
+            let err = call_tool(&snap.0, &snap.1, name, &args, TODAY).unwrap_err();
             assert!(err.downcast_ref::<BadRequest>().is_some(), "{name} {args}: {err:#}");
         }
     }
@@ -910,7 +1161,7 @@ mod tests {
     #[test]
     fn scenario_summary_states_the_numbers() {
         let snap = snap();
-        let out = call_tool(&snap, "run_scenario", &json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }] }), TODAY).unwrap();
+        let out = call_tool(&snap.0, &snap.1, "run_scenario", &json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }] }), TODAY).unwrap();
         assert!(out.summary.contains("Natural rubber +15%"), "{}", out.summary);
         assert!(out.summary.contains("€100.") || out.summary.contains("€101."), "{}", out.summary);
         assert!(out.blocks.iter().any(|b| matches!(b, Block::Link { shocks: Some(s), .. } if s.len() == 1)));
@@ -919,7 +1170,7 @@ mod tests {
     #[test]
     fn a_shock_nothing_is_priced_on_says_so() {
         let snap = snap();
-        let out = call_tool(&snap, "run_scenario", &json!({ "shocks": [{ "kind": "fx", "target": "USD", "percent": 10 }] }), TODAY).unwrap();
+        let out = call_tool(&snap.0, &snap.1, "run_scenario", &json!({ "shocks": [{ "kind": "fx", "target": "USD", "percent": 10 }] }), TODAY).unwrap();
         assert!(out.summary.starts_with("No supply contract is priced off"), "{}", out.summary);
     }
 
@@ -978,6 +1229,15 @@ mod tests {
             ("how exposed are we to the krona", "currency_exposure"),
             ("which brand is most sensitive to commodity prices", "commodity_sensitivity"),
             ("give me an overview", "dashboard"),
+            ("What if Germany ends the EV subsidy?", "subsidy_removal"),
+            ("what if France stops the EV bonus subsidy", "subsidy_removal"),
+            ("What if the EU tightens the CO2 target by 10%?", "co2_fleet"),
+            ("which brand breaches the fleet emissions target", "co2_fleet"),
+            ("What if Tesla cuts prices 10%?", "competitor_price_cut"),
+            ("a competitor cuts its EV price by 10%", "competitor_price_cut"),
+            ("Which brand group depends most on one production site?", "site_dependency"),
+            ("Should we shift production toward EVs?", "powertrain_mix"),
+            ("margin per powertrain", "powertrain_mix"),
         ];
         for (q, tool) in cases {
             assert_eq!(tool_of(&ask(&snap, q)), tool, "{q}");
@@ -1000,6 +1260,33 @@ mod tests {
         assert_eq!(ask(&snap, "explain the ID.4 margin").tool_calls[0].args["model"], "ID4");
         assert_eq!(ask(&snap, "margin of the e-tron").tool_calls[0].args["model"], "e-tron");
         assert_eq!(ask(&snap, "why did the TGX margin change").tool_calls[0].args["model"], "TGX");
+    }
+
+    #[test]
+    fn market_questions_extract_their_parameters() {
+        let snap = snap();
+        assert_eq!(ask(&snap, "What if Germany ends the EV subsidy?").tool_calls[0].args["market"], "Germany");
+        assert_eq!(ask(&snap, "what if France ends its EV subsidy").tool_calls[0].args["market"], "France");
+        assert_eq!(ask(&snap, "What if the EU tightens the CO2 target by 15%?").tool_calls[0].args["tighten_percent"], 15.0);
+        let r = ask(&snap, "What if Tesla cuts prices 12%?");
+        assert_eq!((r.tool_calls[0].args["competitor"].as_str(), r.tool_calls[0].args["cut_percent"].as_f64()), (Some("Tesla"), Some(12.0)));
+        assert!(ask(&snap, "a competitor cuts its price").tool_calls[0].args.get("competitor").is_none());
+        assert_eq!(ask(&snap, "shift production toward EVs by 20%").tool_calls[0].args["shift_percent"], 20.0);
+    }
+
+    #[test]
+    fn market_summaries_state_the_numbers() {
+        let snap = snap();
+        let out = call_tool(&snap.0, &snap.1, "subsidy_removal", &json!({ "market": "Germany" }), TODAY).unwrap();
+        assert!(out.summary.contains("Enyaq") && out.summary.contains("2 high-intent lead"), "{}", out.summary);
+        let none = call_tool(&snap.0, &snap.1, "subsidy_removal", &json!({ "market": "Sweden" }), TODAY).unwrap();
+        assert!(none.summary.starts_with("No EV subsidy applies in Sweden"), "{}", none.summary);
+        let co2 = call_tool(&snap.0, &snap.1, "co2_fleet", &json!({ "tighten_percent": 10 }), TODAY).unwrap();
+        assert!(co2.summary.contains("Audi") && co2.summary.contains("3 brand"), "{}", co2.summary);
+        let site = call_tool(&snap.0, &snap.1, "site_dependency", &json!({}), TODAY).unwrap();
+        assert!(site.summary.contains("Wolfsburg"), "{}", site.summary);
+        let comp = call_tool(&snap.0, &snap.1, "competitor_price_cut", &json!({ "competitor": "Tesla" }), TODAY).unwrap();
+        assert!(comp.summary.contains("ID.4") && !comp.summary.contains("Enyaq"), "{}", comp.summary);
     }
 
     #[test]
