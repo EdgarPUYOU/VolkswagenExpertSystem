@@ -329,6 +329,14 @@ export interface ChatReply {
   planner: string
 }
 
+export type ChatStreamEvent =
+  | { type: 'text'; delta: string }
+  | { type: 'tool'; name: string }
+  | { type: 'blocks'; blocks: ChatBlock[] }
+  | { type: 'reset' }
+  | { type: 'done'; reply: ChatReply }
+  | { type: 'error'; message: string }
+
 export interface ChatStatus {
   planner: string
   llm: boolean
@@ -396,6 +404,55 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const get = <T>(path: string) => request<T>(path)
+
+type ChatHistory = { role: 'user' | 'assistant'; content: string }[]
+
+// Streams a chat reply over SSE. Falls back to the plain POST /api/chat when the
+// stream endpoint answers non-2xx. Resolves when the stream ends; rejects on network
+// failure or abort. Events are delivered through onEvent.
+export async function streamChat(
+  message: string,
+  history: ChatHistory,
+  onEvent: (ev: ChatStreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const body = JSON.stringify({ message, history })
+  const headers = { 'content-type': 'application/json' }
+  const res = await fetch('/api/chat/stream', { method: 'POST', headers, body, signal })
+  if (!res.ok || !res.body) {
+    const reply = await request<ChatReply>('/api/chat', { method: 'POST', headers, body, signal })
+    onEvent({ type: 'done', reply })
+    return
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  const flush = (raw: string) => {
+    const data = raw
+      .split('\n')
+      .filter((l) => l.startsWith('data:'))
+      .map((l) => l.slice(5).replace(/^ /, ''))
+      .join('\n')
+    if (!data) return
+    try {
+      onEvent(JSON.parse(data) as ChatStreamEvent)
+    } catch {
+      /* ignore a malformed event */
+    }
+  }
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
+    let idx: number
+    while ((idx = buf.indexOf('\n\n')) !== -1) {
+      flush(buf.slice(0, idx))
+      buf = buf.slice(idx + 2)
+    }
+  }
+  buf += decoder.decode()
+  if (buf.trim()) flush(buf)
+}
 // ---- strategy (Q10 to Q14)
 
 export interface SubsidyRemoval {

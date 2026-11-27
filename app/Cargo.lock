@@ -2511,6 +2511,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenvy",
+ "futures-util",
  "mime_guess",
  "oxigraph",
  "rusqlite",

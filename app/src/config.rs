@@ -40,16 +40,16 @@ pub struct Config {
     #[arg(long, env = "SQLITE_PATH", default_value = "../data/erp.db")]
     pub sqlite_path: PathBuf,
 
-    /// API key for the language model behind the chat (any OpenAI-compatible API; DeepSeek by default). Leave unset to use the rule-based planner only.
-    #[arg(long, env = "LLM_API_KEY", hide_env_values = true)]
+    /// API key for the language model behind the chat (any OpenAI-compatible API). Leave unset to use the rule-based planner only.
+    #[arg(long, env = "AI_API_KEY", hide_env_values = true)]
     pub llm_api_key: Option<Secret>,
 
     /// Base URL of the OpenAI-compatible API (no trailing slash needed).
-    #[arg(long, env = "LLM_BASE_URL", default_value = "https://api.deepseek.com")]
+    #[arg(long, env = "AI_BASE_URL", default_value = "https://ai.sumopod.com/v1")]
     pub llm_base_url: String,
 
     /// Model the chat asks for.
-    #[arg(long, env = "LLM_MODEL", default_value = "deepseek-chat")]
+    #[arg(long, env = "AI_MODEL", default_value = "gpt-4o-mini")]
     pub llm_model: String,
 }
 
@@ -61,12 +61,20 @@ pub struct LlmConfig {
     pub model: String,
 }
 
+/// A host-only URL (`https://host`) gets `/v1`, which is where OpenAI-compatible APIs serve `/chat/completions`.
+/// Any URL that already has a path is kept as given.
+fn normalise_base_url(url: &str) -> String {
+    let url = url.trim().trim_end_matches('/');
+    let after_scheme = url.split_once("://").map_or(url, |(_, rest)| rest);
+    if after_scheme.contains('/') { url.to_string() } else { format!("{url}/v1") }
+}
+
 impl LlmConfig {
     pub fn from_config(c: &Config) -> LlmConfig {
         LlmConfig {
             // an empty value in .env means "not set"
             api_key: c.llm_api_key.clone().filter(|k| !k.expose().is_empty()),
-            base_url: c.llm_base_url.trim().trim_end_matches('/').to_string(),
+            base_url: normalise_base_url(&c.llm_base_url),
             model: c.llm_model.trim().to_string(),
         }
     }
@@ -95,7 +103,9 @@ mod tests {
     fn empty_key_means_not_configured_and_url_is_normalised() {
         let l = LlmConfig::from_config(&config(Some("  "), "https://example.test/ "));
         assert!(!l.has_key());
-        assert_eq!((l.base_url.as_str(), l.model.as_str()), ("https://example.test", "deepseek-chat"));
+        assert_eq!((l.base_url.as_str(), l.model.as_str()), ("https://example.test/v1", "deepseek-chat"));
+        assert_eq!(normalise_base_url("https://api.example.test/v1/"), "https://api.example.test/v1");
+        assert_eq!(normalise_base_url("https://api.example.test/openai"), "https://api.example.test/openai");
         assert!(LlmConfig::from_config(&config(Some("sk-abc"), "https://x")).has_key());
         assert!(!LlmConfig::from_config(&config(None, "https://x")).has_key());
     }
