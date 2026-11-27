@@ -1,0 +1,9 @@
+# Layer for a host that already runs its own Caddy (ports 80/443 taken): run only the app container
+# and publish it on localhost for the host's Caddy to proxy to. See docs/deploy.md.
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml up -d --no-deps app
+
+services:
+  app:
+    ports:
+      - "127.0.0.1:8000:8000"
