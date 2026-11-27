@@ -9,9 +9,11 @@ import {
   IconSettings,
   IconShoppingCart,
   IconTimeline,
+  IconTopologyStar3,
   IconWorld,
 } from '@tabler/icons-react'
 import type { Icon } from '@tabler/icons-react'
+import { lazy, Suspense } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { ChatBubble } from '@/components/chat/ChatBubble'
 import { Separator } from '@/components/ui/separator'
@@ -28,11 +30,14 @@ import Scenarios from '@/pages/Scenarios'
 import Strategy from '@/pages/Strategy'
 import Suppliers from '@/pages/Suppliers'
 
+const GraphExplain = lazy(() => import('@/pages/GraphExplain'))
+
 const nav: { to: string; label: string; icon: Icon }[] = [
   { to: '/', label: 'Dashboard', icon: IconLayoutDashboard },
   { to: '/scenarios', label: 'Scenario lab', icon: IconAdjustmentsHorizontal },
   { to: '/bad-year', label: 'Bad year', icon: IconCloudStorm },
   { to: '/explain', label: 'Explain a margin', icon: IconTimeline },
+  { to: '/graph', label: 'Explain graph', icon: IconTopologyStar3 },
   { to: '/contracts', label: 'Contracts', icon: IconFileText },
   { to: '/suppliers', label: 'Suppliers', icon: IconBuildingFactory2 },
   { to: '/markets', label: 'Commodities and FX', icon: IconChartLine },
@@ -66,6 +71,7 @@ export default function App() {
         </nav>
       </aside>
       <main className="min-w-0 flex-1 p-6">
+        <Suspense fallback={<p className="text-muted-foreground text-sm">Loading…</p>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/scenarios" element={<Scenarios />} />
@@ -79,7 +85,9 @@ export default function App() {
           <Route path="/models" element={<Models />} />
           <Route path="/contracts" element={<Contracts />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/graph" element={<GraphExplain />} />
         </Routes>
+        </Suspense>
       </main>
       <ChatBubble />
     </div>

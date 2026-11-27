@@ -335,6 +335,60 @@ export interface ChatStatus {
   suggestions: string[]
 }
 
+// ---- explain graph
+
+export interface ExplainRequest {
+  pairs: { from: string; to: string }[]
+  max_depth?: number
+  max_paths?: number
+}
+export type OriginKind = 'asserted' | 'inferred' | 'erp_fact'
+export interface Origin {
+  kind: OriginKind
+  source: string
+}
+export interface GraphProperty {
+  predicate: string
+  label: string
+  value: string
+  datatype: string
+  origin: Origin
+}
+export interface GraphNode {
+  id: string
+  label: string
+  group: string
+  types: string[]
+  properties: GraphProperty[]
+}
+export interface GraphEdge {
+  id: string
+  source: string
+  target: string
+  predicate: string
+  label: string
+  origin: Origin
+  sources: string[]
+}
+export interface ExplainPath {
+  from: string
+  to: string
+  from_label: string
+  to_label: string
+  found: boolean
+  routes: { nodes: string[]; edges: string[] }[]
+}
+export interface ExplainGraph {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  paths: ExplainPath[]
+}
+export interface GraphEntity {
+  iri: string
+  label: string
+  group: string
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init)
   if (!res.ok) throw new Error((await res.text()) || `${path}: ${res.status}`)
@@ -536,6 +590,13 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ message, history }),
     }),
+  explainGraph: (req: ExplainRequest) =>
+    request<ExplainGraph>('/api/graph/explain', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(req),
+    }),
+  graphEntities: (qs: string) => get<GraphEntity[]>(`/api/graph/entities${q({ q: qs, limit: 20 })}`),
   chatStatus: () => get<ChatStatus>('/api/chat/status'),
   savedScenario: (id: number) => get<{ id: number; name: string; result: ScenarioResult }>(`/api/scenarios/${id}`),
   currencyExposure: () => get<CurrencyExposure>('/api/exposure/currency'),
