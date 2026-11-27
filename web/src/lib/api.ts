@@ -20,6 +20,71 @@ export interface ShockSpec {
   percent: number
 }
 
+export interface CombinedRequest {
+  shocks: ShockSpec[]
+  subsidy_markets: string[]
+  elasticity?: number
+  margin_floor?: number
+  save_as?: string
+}
+
+export interface CombinedResult {
+  asof: string
+  margin_floor_pct: number
+  shocks: ShockSpec[]
+  subsidy_markets: string[]
+  elasticity: number
+  totals: {
+    revenue_before: number
+    contribution_before: number
+    extra_material_cost: number
+    lost_contribution: number
+    profit_change: number
+    profit_change_pct: number
+    lost_units: number
+    lost_revenue: number
+  }
+  by_brand: {
+    label: string
+    contribution_before: number
+    extra_material_cost: number
+    lost_contribution: number
+    profit_change: number
+    profit_change_pct: number
+  }[]
+  top_models: {
+    iri: string
+    label: string
+    brand: string
+    extra_material_cost: number
+    lost_units: number
+    lost_contribution: number
+    profit_change: number
+    margin_before_pct: number
+    margin_after_pct: number
+    below_floor: boolean
+  }[]
+  contracts: {
+    priority: number
+    iri: string
+    label: string
+    supplier: string
+    extra_cost: number
+    sourcing: string
+    end: string
+    months_to_end: number
+    drivers: { shock: string; extra_cost: number }[]
+  }[]
+}
+
+export interface SavedCombined {
+  id: number
+  name: string
+  created_at: string
+  request: CombinedRequest
+  totals: CombinedResult['totals']
+}
+
 export interface ScenarioRequest {
   shocks: ShockSpec[]
   margin_floor?: number
@@ -455,6 +520,15 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(req),
     }),
+  runCombined: (req: CombinedRequest) =>
+    request<{ id: number | null; result: CombinedResult }>('/api/scenarios/combined', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(req),
+    }),
+  savedCombined: () => get<SavedCombined[]>('/api/scenarios/combined'),
+  savedCombinedRun: (id: number) =>
+    get<{ id: number; name: string; created_at: string; request: CombinedRequest; result: CombinedResult }>(`/api/scenarios/combined/${id}`),
   savedScenarios: () => get<SavedScenario[]>('/api/scenarios'),
   chat: (message: string) =>
     request<ChatReply>('/api/chat', {

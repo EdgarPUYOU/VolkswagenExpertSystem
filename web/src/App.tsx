@@ -3,6 +3,7 @@ import {
   IconBuildingFactory2,
   IconCar,
   IconChartLine,
+  IconCloudStorm,
   IconFileText,
   IconLayoutDashboard,
   IconSettings,
@@ -16,6 +17,7 @@ import { ChatBubble } from '@/components/chat/ChatBubble'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import Admin from '@/pages/Admin'
+import BadYear from '@/pages/BadYear'
 import Contracts from '@/pages/Contracts'
 import Dashboard from '@/pages/Dashboard'
 import Explain from '@/pages/Explain'
@@ -29,6 +31,7 @@ import Suppliers from '@/pages/Suppliers'
 const nav: { to: string; label: string; icon: Icon }[] = [
   { to: '/', label: 'Dashboard', icon: IconLayoutDashboard },
   { to: '/scenarios', label: 'Scenario lab', icon: IconAdjustmentsHorizontal },
+  { to: '/bad-year', label: 'Bad year', icon: IconCloudStorm },
   { to: '/explain', label: 'Explain a margin', icon: IconTimeline },
   { to: '/contracts', label: 'Contracts', icon: IconFileText },
   { to: '/suppliers', label: 'Suppliers', icon: IconBuildingFactory2 },
@@ -66,7 +69,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/scenarios" element={<Scenarios />} />
-          <Route path="/explain" element={<Explain />} />
+          <Route path="/bad-year" element={<BadYear />} />
+          <Route path="/explain"element={<Explain />} />
           <Route path="/explain/:model" element={<Explain />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/markets" element={<Markets />} />
