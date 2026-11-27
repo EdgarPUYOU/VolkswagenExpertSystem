@@ -40,11 +40,11 @@ Note the deploy copies the merged commit as it is checked out in CI; the server 
    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
    sudo apt-get install -y docker.io docker-compose-v2
    ```
-4. **Server `.env`** in `~/vw/.env` (`chmod 600`). The compose file needs the three Caddy variables to be set even when the host's Caddy is used, so give them placeholders:
+4. **Server `.env`** in `~/vw/.env` (`chmod 600`). The compose file needs `SITE_ADDRESS` set even when the host's Caddy is used, so give it a placeholder. `APP_PASSWORD` is the login for the web UI and is required:
    ```
    SITE_ADDRESS=vw.example.com
-   BASIC_AUTH_USER=admin
-   BASIC_AUTH_HASH=unused-host-caddy
+   APP_USER=admin
+   APP_PASSWORD=a-long-random-password
    APP_UID=1000        # id -u
    APP_GID=1000        # id -g
    AI_API_KEY=...
@@ -52,13 +52,10 @@ Note the deploy copies the merged commit as it is checked out in CI; the server 
    AI_MODEL=gpt-4o-mini
    ```
    `~/vw/data` must be writable by `APP_UID:APP_GID`; it holds the SQLite file.
-5. **Caddy site block** in the host's `/etc/caddy/Caddyfile`. Make the hash with `caddy hash-password --plaintext '...'`:
+5. **Caddy site block** in the host's `/etc/caddy/Caddyfile`. No `basic_auth` here: the app has its own login page. Sessions live in memory, so a restart or deploy signs everyone out.
    ```
    vw.example.com {
        encode zstd gzip
-       basic_auth {
-           admin <hash>
-       }
        # flush at once so the chat answer streams (Server-Sent Events)
        reverse_proxy 127.0.0.1:8000 {
            flush_interval -1

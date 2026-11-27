@@ -2,9 +2,6 @@
 {$SITE_ADDRESS} {
 	encode zstd gzip
 
-	basic_auth {
-		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
-	}
-
+	# login is done by the app itself (see APP_USER / APP_PASSWORD)
 	reverse_proxy app:8000
 }

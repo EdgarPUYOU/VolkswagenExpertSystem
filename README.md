@@ -31,7 +31,7 @@ Needs Rust (stable) and Node 24. Docker is only needed for `make prod-docker` an
 | `app/` | Rust API: `kg.rs` (Oxigraph adapter and rule engine), `facts.rs`, `db.rs` and `migrations/` (SQLite), `services/` (one module per question group, chat tools, language-model planner), `routers/`. |
 | `web/` | React + TypeScript + Vite + shadcn/ui front end. Built into the Rust binary. |
 | `tools/` | `gen_supply_abox.py` regenerates `ontology/VW_Supply_Abox.ttl`. |
-| `infra/` | `Caddyfile` for production (HTTPS and basic auth). |
+| `infra/` | `Caddyfile` for production (HTTPS; login is done by the app). |
 | `docs/` | `plan.md` (design and decisions) and `progress.md` (status and findings). |
 | `Dockerfile`, `docker-compose*.yml` | Multi-stage image; dev compose (GraphDB) and prod compose (Caddy and app). |
 | `data/` | SQLite file at run time (git-ignored). |

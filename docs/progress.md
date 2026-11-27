@@ -50,7 +50,7 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 - `web/` (React 19, Vite, TypeScript, Tailwind, shadcn/ui, TanStack Query and Table v8, React Router):
   - Sidebar shell with four pages: Dashboard, Portfolio, Contracts, Admin.
   - Checked in a browser against the embedded build: renders with real data, no console errors.
-- Deployment files: `Dockerfile` (Node, Rust, distroless), `docker-compose.yml` (dev, GraphDB on localhost), `docker-compose.prod.yml` (Caddy with HTTPS and basic auth, plus app), `infra/Caddyfile`, `.env.example`, `.dockerignore`, `.gitignore`.
+- Deployment files: `Dockerfile` (Node, Rust, distroless), `docker-compose.yml` (dev, GraphDB on localhost), `docker-compose.prod.yml` (Caddy with HTTPS, plus app), `infra/Caddyfile`, `.env.example`, `.dockerignore`, `.gitignore`.
 
 ### Step 2: Rules
 
