@@ -67,7 +67,7 @@ export default function App() {
 
   const signOut = async () => {
     await api.logout()
-    qc.clear()
+    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'session' })
     qc.setQueryData(['session'], { auth_required: true, authenticated: false })
   }
 

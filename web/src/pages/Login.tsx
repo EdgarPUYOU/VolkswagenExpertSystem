@@ -20,7 +20,8 @@ export default function Login() {
     setError(null)
     try {
       const session = await api.login(username, password)
-      qc.clear()
+      // keep the observed 'session' query: clear() would detach App's observer and the UI would not update
+      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'session' })
       qc.setQueryData(['session'], session)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed.')
