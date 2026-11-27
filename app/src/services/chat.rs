@@ -6,6 +6,7 @@
 //! The planner is the only part that guesses; swap it for an LLM that calls the same tools and
 //! nothing else changes. Tools never accept SPARQL or SQL.
 
+use super::combined::{self, CombinedRequest};
 use super::finance::*;
 use super::market::{self, MarketData};
 use super::sales::{self, SalesData};
@@ -299,6 +300,29 @@ pub fn tools() -> Vec<Tool> {
                 "properties": {
                     "model": { "type": "string", "description": "Model short name. Default Taycan." },
                     "market": { "type": "string", "description": "Market name. Default Czech Republic (the Prague market)." }
+                }
+            }),
+        },
+        Tool {
+            name: "combined_scenario",
+            description: "A combined 'bad year': commodity and currency shocks together with the end of EV subsidies in one or more markets. Reports the profit change in total and per brand, the five models hit hardest and the contracts to renegotiate first. Use for questions like 'what does a bad year cost: rubber +15%, krona +5% and no German EV subsidy?'.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "shocks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "kind": { "type": "string", "enum": ["commodity", "fx"] },
+                                "target": { "type": "string", "description": "Index name such as NaturalRubber or a currency code such as SEK" },
+                                "percent": { "type": "number" }
+                            },
+                            "required": ["kind", "target", "percent"]
+                        }
+                    },
+                    "subsidy_markets": { "type": "array", "items": { "type": "string" }, "description": "Markets whose EV subsidy ends, for example Germany" },
+                    "elasticity": { "type": "number", "description": "Price elasticity of demand for the subsidy loss. Default 1.5." }
                 }
             }),
         },
@@ -844,6 +868,39 @@ pub fn call_tool(snap: &Snapshot, md: &MarketData, sd: &SalesData, name: &str, a
             ];
             Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
         }
+        "combined_scenario" => {
+            let req: CombinedRequest = parse(args)?;
+            let r = combined::run_combined(snap, md, &req)?;
+            let what: Vec<String> = r.shocks.iter().map(|s| shock_text(snap, s)).chain(r.subsidy_markets.iter().map(|m| format!("no EV subsidy in {m}"))).collect();
+            let t = &r.totals;
+            let worst = r.by_brand.first().map(|b| format!(" Hardest hit brand: {} ({}).", b.label, money(b.profit_change))).unwrap_or_default();
+            let models: Vec<String> = r.top_models.iter().map(|m| format!("{} ({})", m.label, money(m.profit_change))).collect();
+            let first = r.contracts.first().map(|c| format!(" Renegotiate first: {} ({} a year, ends {}).", c.label.replace("Illustrative supply contract for ", ""), money(c.extra_cost), c.end)).unwrap_or_default();
+            let summary = format!(
+                "{}: profit changes by {} ({} of contribution): {} extra material cost and {} contribution lost on {} cars.{worst} Top models: {}.{first}",
+                what.join(", "), money(t.profit_change), p1(t.profit_change_pct), money(t.extra_material_cost), money(t.lost_contribution), int(t.lost_units), list_names(&models, 5)
+            );
+            let blocks = vec![
+                Block::Kpis { items: vec![
+                    kpi("Profit change", money(t.profit_change), Some(format!("{} of contribution", p1(t.profit_change_pct))), t.profit_change < 0.0),
+                    kpi("Extra material cost", money(t.extra_material_cost), None, t.extra_material_cost > 0.0),
+                    kpi("Contribution lost to demand", money(t.lost_contribution), Some(format!("{} cars", int(t.lost_units))), t.lost_contribution > 0.0),
+                ] },
+                Block::Bars { title: "Profit lost by brand".into(), unit: "€M".into(), items: r.by_brand.iter().map(|b| BarItem { label: b.label.clone(), value: (-b.profit_change / 1e4).round() / 100.0 }).collect() },
+                Block::Table {
+                    title: "Top 5 models hit".into(),
+                    columns: ["Model", "Extra cost", "Cars lost", "Profit change", "Margin after"].map(String::from).to_vec(),
+                    rows: r.top_models.iter().map(|m| vec![m.label.clone(), money(m.extra_material_cost), int(m.lost_units), money(m.profit_change), p1(m.margin_after_pct)]).collect(),
+                },
+                Block::Table {
+                    title: "Contracts to renegotiate first".into(),
+                    columns: ["#", "Contract", "Supplier", "Extra cost / year", "Ends"].map(String::from).to_vec(),
+                    rows: r.contracts.iter().take(5).map(|c| vec![c.priority.to_string(), c.label.replace("Illustrative supply contract for ", ""), c.supplier.replace("Illustrative ", ""), money(c.extra_cost), c.end.clone()]).collect(),
+                },
+                link("Open Bad year", "/bad-year"),
+            ];
+            Ok(ToolOutput { summary, blocks, data: to_value(&r)? })
+        }
         "list_entities" => {
             let a: ListArgs = parse(args)?;
             let (title, columns, rows): (&str, Vec<&str>, Vec<Vec<String>>) = match a.kind.as_str() {
@@ -1058,6 +1115,7 @@ pub const SUGGESTIONS: &[&str] = &[
     "Which high-intent leads match models under margin pressure?",
     "Which incentive campaigns spend on models already at capacity?",
     "Is lease or loan more profitable for Taycan buyers in Prague?",
+    "What does a bad year cost: rubber up 15%, krona up 5% and no German EV subsidy?",
 ];
 
 fn help_text() -> String {
@@ -1096,6 +1154,17 @@ pub fn plan(snap: &Snapshot, md: &MarketData, sd: &SalesData, message: &str, tod
             return call(snap, md, sd, "lead_time_impact", json!({ "supplier": supplier, "factor": factor }), today, None);
         }
         return Ok(Reply { text: "Which supplier? For example: battery, brakes, tyres, transmission, infotainment, electric drive, powertrain.".into(), blocks: vec![], tool_calls: vec![], planner: "rules" });
+    }
+    if lower.contains("bad year") || (lower.contains("subsid") && !find_mentions(lower).is_empty()) {
+        let (mut shocks, _) = plan_shocks(lower);
+        if shocks.is_empty() {
+            shocks = vec![
+                ShockSpec { kind: "commodity".into(), target: "NaturalRubber".into(), percent: 15.0 },
+                ShockSpec { kind: "fx".into(), target: "SEK".into(), percent: 5.0 },
+            ];
+        }
+        let market = MARKET_WORDS.iter().find(|(w, _)| lower.contains(w)).map_or("Germany", |m| m.1);
+        return call(snap, md, sd, "combined_scenario", json!({ "shocks": shocks, "subsidy_markets": [market] }), today, None);
     }
     if has_any(lower, &["subsid"]) {
         let market = MARKET_WORDS.iter().find(|(w, _)| lower.contains(w)).map_or("Germany", |m| m.1);
@@ -1247,6 +1316,7 @@ mod tests {
             ("lead_pressure", json!({ "months": 3 })),
             ("campaign_capacity", json!({ "threshold_percent": 90 })),
             ("financing_comparison", json!({ "model": "Taycan" })),
+            ("combined_scenario", json!({ "shocks": [{ "kind": "commodity", "target": "NaturalRubber", "percent": 15 }], "subsidy_markets": ["Germany"] })),
             ("list_entities", json!({ "kind": "models" })),
             ("list_entities", json!({ "kind": "markets" })),
             ("list_entities", json!({ "kind": "competitors" })),
@@ -1280,6 +1350,8 @@ mod tests {
             ("campaign_capacity", json!({ "threshold_percent": -1 })),
             ("financing_comparison", json!({ "model": "Golf" })),
             ("financing_comparison", json!({ "market": "Atlantis" })),
+            ("combined_scenario", json!({})),
+            ("combined_scenario", json!({ "subsidy_markets": ["Atlantis"] })),
         ] {
             let err = call_tool(&snap.0, &snap.1, &snap.2, name, &args, TODAY).unwrap_err();
             assert!(err.downcast_ref::<BadRequest>().is_some(), "{name} {args}: {err:#}");
@@ -1369,6 +1441,8 @@ mod tests {
             ("Which high-intent leads match models under margin pressure?", "lead_pressure"),
             ("Which incentive campaigns spend on models already at capacity?", "campaign_capacity"),
             ("Is lease or loan more profitable for Taycan buyers in Prague?", "financing_comparison"),
+            ("What does a bad year cost: rubber up 15%, krona up 5% and no German EV subsidy?", "combined_scenario"),
+            ("what if a bad year hits", "combined_scenario"),
         ];
         for (q, tool) in cases {
             assert_eq!(tool_of(&ask(&snap, q)), tool, "{q}");
@@ -1432,6 +1506,22 @@ mod tests {
         let r = ask(&snap, "is leasing a Taycan in Prague better than a loan?");
         assert_eq!(r.tool_calls[0].args["model"], "Taycan");
         assert_eq!(r.tool_calls[0].args["market"], "Czech Republic");
+    }
+
+    #[test]
+    fn bad_year_question_is_planned_with_its_shocks_and_summarised() {
+        let snap = snap();
+        let r = ask(&snap, "What does a bad year cost: rubber up 15%, krona up 5% and no German EV subsidy?");
+        assert_eq!(tool_of(&r), "combined_scenario");
+        let args = &r.tool_calls[0].args;
+        assert_eq!(args["subsidy_markets"][0], "Germany");
+        assert_eq!(args["shocks"].as_array().unwrap().len(), 2);
+        assert!(r.text.contains("Natural rubber +15%") && r.text.contains("no EV subsidy in Germany") && r.text.contains("Renegotiate first"), "{}", r.text);
+        let preset = ask(&snap, "what if a bad year hits");
+        assert_eq!(preset.tool_calls[0].args["shocks"].as_array().unwrap().len(), 2, "preset shocks when none are named");
+        // a plain commodity question is still a scenario run, and a subsidy question without shocks is unchanged
+        assert_eq!(tool_of(&ask(&snap, "what if rubber goes up 15%?")), "run_scenario");
+        assert_eq!(tool_of(&ask(&snap, "What if Germany ends the EV subsidy?")), "subsidy_removal");
     }
 
     #[test]

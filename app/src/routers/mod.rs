@@ -3,6 +3,7 @@ use crate::{
     kg::Kg,
     services::{
         chat::{self, ChatRequest},
+        combined::{self, CombinedRequest},
         finance::{self, BadRequest, ScenarioRequest, Snapshot},
         market::{self, MarketData},
         portfolio, questions,
@@ -69,6 +70,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/contracts", get(contracts))
         .route("/api/scenarios/run", post(run_scenario))
         .route("/api/scenarios", get(list_scenarios))
+        .route("/api/scenarios/combined", get(list_combined).post(run_combined))
+        .route("/api/scenarios/combined/{id}", get(get_combined))
         .route("/api/scenarios/{id}", get(get_scenario))
         .route("/api/chat", post(chat))
         .route("/api/chat/status", get(chat_status))
@@ -152,7 +155,7 @@ async fn run_scenario(State(s): State<AppState>, Json(req): Json<ScenarioRequest
 async fn list_scenarios(State(s): State<AppState>) -> ApiResult {
     let conn = s.db.lock().map_err(internal)?;
     let mut stmt = conn
-        .prepare("SELECT id, name, params_json, created_at FROM scenario_runs ORDER BY id DESC")
+        .prepare("SELECT id, name, params_json, created_at FROM scenario_runs WHERE kind = 'scenario' ORDER BY id DESC")
         .map_err(internal)?;
     let rows = stmt
         .query_map([], |r| {
@@ -172,7 +175,7 @@ async fn list_scenarios(State(s): State<AppState>) -> ApiResult {
 async fn get_scenario(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult {
     let conn = s.db.lock().map_err(internal)?;
     let row = conn.query_row(
-        "SELECT name, result_json, created_at FROM scenario_runs WHERE id = ?1",
+        "SELECT name, result_json, created_at FROM scenario_runs WHERE id = ?1 AND kind = 'scenario'",
         [id],
         |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?)),
     );
@@ -379,4 +382,66 @@ async fn sales_financing(State(s): State<AppState>, Query(p): Query<FinancingPar
     let (snap, md, sd) = sales_ctx(&s).map_err(fail)?;
     let r = sales::financing_comparison(&snap, &md, &sd, p.model.as_deref().unwrap_or("Taycan"), p.market.as_deref().unwrap_or("Czech Republic"));
     Ok(Json(json!(r.map_err(fail)?)))
+}
+
+async fn run_combined(State(s): State<AppState>, Json(req): Json<CombinedRequest>) -> ApiResult {
+    let (snap, md) = market_data(&s).map_err(fail)?;
+    let result = combined::run_combined(&snap, &md, &req).map_err(fail)?;
+    let id = match req.save_as.as_deref().map(str::trim).filter(|n| !n.is_empty()) {
+        Some(name) => {
+            let params = serde_json::to_string(&req).map_err(internal)?;
+            let body = serde_json::to_string(&result).map_err(internal)?;
+            let conn = s.db.lock().map_err(internal)?;
+            conn.execute(
+                "INSERT INTO scenario_runs (name, params_json, result_json, kind) VALUES (?1, ?2, ?3, 'combined')",
+                rusqlite::params![name, params, body],
+            )
+            .map_err(internal)?;
+            Some(conn.last_insert_rowid())
+        }
+        None => None,
+    };
+    Ok(Json(json!({ "id": id, "result": result })))
+}
+
+async fn list_combined(State(s): State<AppState>) -> ApiResult {
+    let conn = s.db.lock().map_err(internal)?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, params_json, result_json, created_at FROM scenario_runs WHERE kind = 'combined' ORDER BY id DESC")
+        .map_err(internal)?;
+    let rows = stmt
+        .query_map([], |r| {
+            let result: Value = serde_json::from_str(&r.get::<_, String>(3)?).unwrap_or(Value::Null);
+            Ok(json!({
+                "id": r.get::<_, i64>(0)?,
+                "name": r.get::<_, String>(1)?,
+                "request": serde_json::from_str::<Value>(&r.get::<_, String>(2)?).unwrap_or(Value::Null),
+                "totals": result.get("totals").cloned().unwrap_or(Value::Null),
+                "created_at": r.get::<_, String>(4)?,
+            }))
+        })
+        .map_err(internal)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(internal)?;
+    Ok(Json(json!(rows)))
+}
+
+async fn get_combined(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult {
+    let conn = s.db.lock().map_err(internal)?;
+    let row = conn.query_row(
+        "SELECT name, params_json, result_json, created_at FROM scenario_runs WHERE id = ?1 AND kind = 'combined'",
+        [id],
+        |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?)),
+    );
+    match row {
+        Ok((name, params, result, created_at)) => Ok(Json(json!({
+            "id": id,
+            "name": name,
+            "created_at": created_at,
+            "request": serde_json::from_str::<Value>(&params).map_err(internal)?,
+            "result": serde_json::from_str::<Value>(&result).map_err(internal)?,
+        }))),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Err((StatusCode::NOT_FOUND, format!("no combined run {id}"))),
+        Err(e) => Err(internal(e)),
+    }
 }
