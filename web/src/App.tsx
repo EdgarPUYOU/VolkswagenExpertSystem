@@ -6,6 +6,7 @@ import {
   IconFileText,
   IconLayoutDashboard,
   IconSettings,
+  IconShoppingCart,
   IconTimeline,
   IconWorld,
 } from '@tabler/icons-react'
@@ -20,6 +21,7 @@ import Dashboard from '@/pages/Dashboard'
 import Explain from '@/pages/Explain'
 import Markets from '@/pages/Markets'
 import Models from '@/pages/Models'
+import Sales from '@/pages/Sales'
 import Scenarios from '@/pages/Scenarios'
 import Strategy from '@/pages/Strategy'
 import Suppliers from '@/pages/Suppliers'
@@ -32,6 +34,7 @@ const nav: { to: string; label: string; icon: Icon }[] = [
   { to: '/suppliers', label: 'Suppliers', icon: IconBuildingFactory2 },
   { to: '/markets', label: 'Commodities and FX', icon: IconChartLine },
   { to: '/strategy', label: 'Markets and regulation', icon: IconWorld },
+  { to: '/sales', label: 'Sales and leads', icon: IconShoppingCart },
   { to: '/models', label: 'Portfolio', icon: IconCar },
   { to: '/admin', label: 'Admin', icon: IconSettings },
 ]
@@ -68,6 +71,7 @@ export default function App() {
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/markets" element={<Markets />} />
           <Route path="/strategy" element={<Strategy />} />
+          <Route path="/sales" element={<Sales />} />
           <Route path="/models" element={<Models />} />
           <Route path="/contracts" element={<Contracts />} />
           <Route path="/admin" element={<Admin />} />

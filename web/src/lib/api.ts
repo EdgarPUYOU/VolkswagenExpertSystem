@@ -383,6 +383,58 @@ export interface StrategyRefs {
   competitors: string[]
 }
 
+// ---- sales (Q15 to Q17)
+
+export interface LeadPressure {
+  asof: string
+  floor_pct: number
+  buffer_pp: number
+  months: number
+  pressured_count: number
+  leads: { customer: string; model_iri: string; model: string; margin_pct: number; margin_change_pp: number; reasons: string[]; pressure: boolean; revenue: number }[]
+}
+
+export interface CampaignCapacity {
+  threshold_pct: number
+  total_spend: number
+  wasted_spend: number
+  campaigns: {
+    iri: string
+    label: string
+    model: string
+    spend: number
+    expected_incremental_units: number
+    planned_units: number
+    capacity_units: number
+    utilisation_pct: number
+    headroom_units: number
+    at_capacity: boolean
+    wasted_spend: number
+  }[]
+}
+
+export interface FinancingComparison {
+  model: string
+  market: string
+  price: number
+  best: string
+  best_kind: string
+  kind_gap: number
+  products: {
+    iri: string
+    label: string
+    kind: 'Lease' | 'Loan'
+    term_months: number
+    rate_pct: number
+    income: number
+    funding_cost: number
+    risk_cost: number
+    subvention_cost: number
+    profit: number
+    profit_pct_of_price: number
+  }[]
+}
+
 const q = (params: Record<string, string | number | undefined>) => {
   const s = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') s.set(k, String(v))
@@ -426,6 +478,9 @@ export const api = {
     get<CompetitorCut>(`/api/strategy/competitor${q({ competitor, cut, elasticity })}`),
   sites: () => get<GroupSites[]>('/api/strategy/sites'),
   mix: (shift: number) => get<MixAnalysis>(`/api/strategy/mix${q({ shift })}`),
+  leads: (floor: number, buffer: number, months: number) => get<LeadPressure>(`/api/sales/leads${q({ floor, buffer, months })}`),
+  campaigns: (threshold: number) => get<CampaignCapacity>(`/api/sales/campaigns${q({ threshold })}`),
+  financing: (model: string, market: string) => get<FinancingComparison>(`/api/sales/financing${q({ model, market })}`),
   marginTrace: (model: string, from?: string, to?: string) =>
     get<MarginTrace>(`/api/models/${encodeURIComponent(model)}/margin-trace${q({ from, to })}`),
 }
