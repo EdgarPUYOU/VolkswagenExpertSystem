@@ -5,7 +5,7 @@ A mini ERP for a car group that answers finance, procurement, strategy and sales
 - a **knowledge graph** (Turtle files in `ontology/`, loaded into an embedded Oxigraph store) for structure and meaning: who supplies what, which contract covers which component, which models use it, which clauses link a contract to a commodity index, which regulations apply where;
 - **SQLite** for numbers: index values, FX rates, prices, planned production, contract terms, budgets, campaigns and financing terms.
 
-The two are joined by IRI. A Rust (`axum`) API runs the analyses, a React front end shows them, and a chat bubble answers questions through the same analyses (a language model when `LLM_API_KEY` is set, keyword matching otherwise).
+The two are joined by IRI. A Rust (`axum`) API runs the analyses, a React front end shows them, and a chat bubble answers questions through the same analyses (a language model when `AI_API_KEY` is set, keyword matching otherwise).
 
 > **Important:** every supplier, price, contract, customer, regulation and scenario result is synthetic and illustrative. Overheads, index paths and elasticities are calibrated so the demo questions give non-trivial answers. Nothing here describes the real company and nothing here should inform a real purchasing, pricing or investment decision.
 
@@ -13,7 +13,7 @@ The two are joined by IRI. A Rust (`axum`) API runs the analyses, a React front 
 
 ```bash
 make help        # list every shortcut
-make env         # copy .env.example to .env (optional: add LLM_API_KEY for the language-model chat)
+make env         # copy .env.example to .env (optional: add AI_API_KEY for the language-model chat)
 make install     # web dependencies (once)
 make dev         # API on :8000 and UI on :5173
 make test        # Rust tests and web type check
@@ -63,7 +63,7 @@ Nineteen questions, each a service in `app/src/services/`, a page or tab in the 
 
 ## Configuration
 
-Settings come from flags, environment variables or a `.env` file (see `.env.example`). The language-model chat uses any OpenAI-compatible API (DeepSeek by default) through `LLM_API_KEY`, `LLM_BASE_URL` and `LLM_MODEL`. The key stays on the server.
+Settings come from flags, environment variables or a `.env` file (see `.env.example`). The language-model chat uses any OpenAI-compatible API through `AI_API_KEY`, `AI_BASE_URL` and `AI_MODEL`. The key stays on the server.
 
 ## Validation
 
