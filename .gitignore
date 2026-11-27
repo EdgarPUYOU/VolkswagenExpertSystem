@@ -7,3 +7,8 @@ data/
 # GraphDB home (dev only)
 infra/graphdb-home/
 .env
+
+# Editor, OS and tooling noise
+.playwright-mcp/
+.DS_Store
+*.swp

@@ -17,7 +17,7 @@ install: ## Install web dependencies
 dev: ## Dev: API on :8000 and Vite UI on :5173 together (Ctrl-C stops both)
 	$(MAKE) -j2 dev-api dev-web
 
-dev-api: ## Dev: API only (loads TTL files from repo root, seeds SQLite on first start)
+dev-api: ## Dev: API only (loads ontology/*.ttl, seeds SQLite on first start)
 	cd app && cargo run -- serve --bind $(BIND)
 
 dev-web: ## Dev: Vite UI only, proxies /api to :8000

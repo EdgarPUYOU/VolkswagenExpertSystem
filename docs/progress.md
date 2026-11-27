@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-27 (step 5 and Makefile added). Branch: `feat/architecture-skeleton` (nothing committed yet).
 
-The full design is in [plan.md](plan.md). This file tracks what is done and what is next.
+The full design is in [plan.md](plan.md). Layout and quick start: [../README.md](../README.md). This file tracks what is done and what is next.
 
 ## Summary
 
@@ -125,6 +125,13 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 - With no key the rule-based planner answers, as before. With a key but a failed call (down, 401, timeout, empty answer, tool loop) the rule planner answers and the text starts with a note that the model could not be reached. `/api/chat/status` reports `planner` (`llm` or `rules`), `llm`, model and base URL.
 - Tests (74 in total): a scripted backend covers the tool loop, error recovery, history trimming, loop cap and empty answers; a local HTTP stub checks the SDK posts to `/chat/completions` on the configured base URL with the Bearer key and that API errors do not leak the key. Also run end to end against a mock OpenAI-compatible server with the real binary. Not run against the real DeepSeek API (no key here).
 
+### Repository tidy
+
+- Turtle files moved into `ontology/` (`git mv`, history kept; file names unchanged so named-graph IRIs are the same). `ONTOLOGY_DIR` now defaults to `../ontology`; the Dockerfile copies `ontology/`; the dev GraphDB mounts `./ontology`; `tools/gen_supply_abox.py` writes there and reproduces its output exactly.
+- `plan.md` and `progress.md` moved to `docs/`. The root README was rewritten (it still described 9 files and hand-computed volumes): layout, quick start, modules, reasoning, configuration, validation, and the synthetic-data warning. `web/README.md` replaced the Vite template text. Stale file names in the Turtle header comments fixed. `.playwright-mcp/` and OS noise are git-ignored.
+- Still open from plan section 7: `ComponentCategory` individuals duplicate the component subclasses.
+- Verified after the move: 74 tests, 3,832 triples, same graphs; server start from the new layout.
+
 ### Chat bubble
 
 - "Ask the data" bubble on every page: answers with KPI tiles, tables, bar charts and links, keeps its history across pages and reloads, and its links can open the Scenario lab with the shocks filled in.
@@ -162,7 +169,6 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 ## Open decisions
 
 - VPS size (RAM). Assumed 512 MB to 1 GB.
-- Move TTL files to `ontology/`, or leave them at the root. They stay at the root for now (shared with the GitHub collaborator).
 - Domain name for the VPS and TLS.
 - Backup method for `erp.db`: cron copy or Litestream.
 - Commit plan: the 46 untracked files could be split into commits for the Rust app, the web app and the deployment files. Nothing is staged; commits need explicit confirmation.
@@ -172,7 +178,7 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 ```bash
 make help                       # shortcuts: make dev, make prod, make prod-docker, make test
 
-# API on :8000 (loads the TTL files from the repo root; seeds SQLite on first start)
+# API on :8000 (loads ontology/*.ttl; seeds SQLite on first start)
 cd app && cargo run -- serve
 
 # Re-seed the finance data, or explore the graph from the command line
