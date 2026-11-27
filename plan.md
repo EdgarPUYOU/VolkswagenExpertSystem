@@ -302,7 +302,7 @@ A test suite with at least one test per question. Implemented as Rust tests on t
 4. **Finance and contract terms** (ABox/TBox, SQLite migrations, seed) plus services and pages for Q1 to Q9 and Q19. **Done (section 12).**
 5. **Market, regulation and competitors.** Covers Q10 to Q14. **Done (section 12).**
 6. **Sales, campaigns and financing.** Covers Q15 to Q17. **Done (section 12).**
-7. **Scenarios.** Covers Q18 and the saved scenario runs.
+7. **Scenarios.** Covers Q18 and the saved scenario runs. **Done (section 12).**
 8. **Move numeric facts** (price, planned production, contract volumes and prices) out of the TTL into SQLite.
 9. **Deploy to the VPS** (can happen earlier, after step 4, to demo online).
 
@@ -372,6 +372,8 @@ Done:
 - **Step 5, market and regulation (Q10 to Q14).** `VW_Market_*` TTL, `rules/50_market.ru`, migration 003 (`sales_plan`, `competitor_prices`), `services/market.rs`, `/api/strategy/*`, UI page "Markets and regulation", 7 tests (50 in total). Elasticities are request inputs (defaults 1.5 and 0.8); CO2 target (120 g/km, EUR 95 per g/km) is illustrative. Chat tools added (16 in total). `Makefile` added for dev and prod start.
 
 - **Step 6, sales (Q15 to Q17).** `VW_Campaign_*` TTL, migration 004, `services/sales.rs`, `/api/sales/*`, page "Sales and leads", 3 chat tools (19 in total), 57 tests. Financing is modelled for the Taycan in the Czech market only; all rates are illustrative.
+
+- **Step 7, combined scenario (Q18).** `services/combined.rs`, `/api/scenarios/combined*`, migration 005 (`scenario_runs.kind`), page "Bad year", chat tool `combined_scenario` (20 tools), 61 tests. Saved combined runs can be compared in the Saved runs tab.
 
 - **Chat bubble (section 2.8).** 11 tools, a rule-based planner, `/api/chat*` endpoints and the bubble UI. 14 new Rust tests (43 in total) cover the tool catalogue, every tool with sample arguments, bad input (400), and about 40 phrasings, including mixed rises and falls, currency moves, month counts and model names. Checked in a browser: suggestions, typed questions, charts and tables in the conversation, a link that opens the Scenario lab with the shocks filled in, and history that survives a reload. No language model is connected yet.
 

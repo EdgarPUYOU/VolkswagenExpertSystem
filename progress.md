@@ -14,7 +14,7 @@ The full design is in [plan.md](plan.md). This file tracks what is done and what
 | 4. Finance and contract terms (Q1 to Q9, Q19) | Done: data, rules, API, UI, tests |
 | 5. Market, regulation, competitors (Q10 to Q14) | Done: data, rules, API, UI, tests |
 | 6. Sales, campaigns, financing (Q15 to Q17) | Done: data, API, UI, chat tools, tests |
-| 7. Scenarios (Q18) | Not started |
+| 7. Scenarios (Q18) | Done: combined service, saved runs, API, UI, chat tool, tests |
 | 8. Move numeric facts out of the TTL | Not started |
 | 9. Deploy to the VPS | Not started |
 
@@ -94,6 +94,15 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 - Headline results (illustrative): both high-intent leads (Customer 001, Enyaq and ID.4) sit on models near the 15% floor and down about 1.1 points in 6 months; EUR 35.5M of EUR 83M campaign spend goes to extra cars that cannot be built (ID.4, Taycan fully, Enyaq partly); the Taycan 60-month loan earns EUR 5.7K per contract, EUR 840 more than the best lease.
 - Assumptions: loan interest is charged on 55% of the principal on average; lease finance charge is on the average of price and residual; vehicle margin is the same either way; rates, capacities and campaign effects are made up.
 
+### Step 7: Combined scenario, "bad year" (Q18)
+
+- `services/combined.rs`: commodity and FX shocks plus the end of EV subsidies in one run. Profit change per model is minus (extra material cost on cars still sold plus contribution lost on cars no longer sold), so the two effects are not double counted. Output: totals, profit change per brand (worst first), top 5 models, up to 10 contracts to renegotiate first (ranked by extra cost, with months to end).
+- API: `POST /api/scenarios/combined` (saves when `save_as` is set), `GET /api/scenarios/combined` (saved runs with totals, for side-by-side comparison), `GET /api/scenarios/combined/{id}`. Migration 005 adds `scenario_runs.kind` so single-shock and combined runs stay in separate lists.
+- UI: "Bad year" page (built by a subagent against a fixed contract, checked live) with By brand, Top 5 models, Contracts and Saved runs tabs. Chat: tool `combined_scenario` (20 in total) and a planner rule for "bad year" and for subsidy questions that also name a commodity or currency move.
+- 61 Rust tests; clippy clean.
+- Headline result (illustrative): rubber +15%, krona +5% and no German subsidy cost about EUR 488M a year, 2.6% of contribution (EUR 323M extra material cost, EUR 165M lost demand on about 21,400 cars). Scania and MAN take the largest brand hit (about EUR 143M and 107M, all material cost); Enyaq, ID.4 and e-tron are hit mostly by lost demand; the heavy-duty engine contract is first to renegotiate.
+- Assumptions: subsidy elasticity is an input (default 1.5); shocks apply to the latest month's prices; saved runs store the request and result, not the data they ran on.
+
 ### Chat bubble
 
 - "Ask the data" bubble on every page: answers with KPI tiles, tables, bar charts and links, keeps its history across pages and reloads, and its links can open the Scenario lab with the shocks filled in.
@@ -122,7 +131,7 @@ Decision: embedded Oxigraph is viable on a tiny VPS. It runs in memory and is re
 ## Next
 
 1. **Connect a language model to the chat** (needs an API key and an HTTP client crate; plan.md section 2.8 lists the steps).
-2. **Step 7**: Q18 "bad year" combined scenario (rubber, SEK, German subsidy together), then step 8 (move numeric facts out of the TTL).
+2. **Step 8**: move numeric facts (price, planned production, contract volumes and prices) out of the TTL into SQLite; then deploy (step 9).
 3. Optional: load the same TTL and rules into dev GraphDB with a no-inference ruleset and compare triple counts with the app.
 4. Build the Budget vs actual page (budget and actuals tables are already seeded).
 5. Add a pytest or similar HTTP-level suite against `/api`, and test the Docker setup on a machine with Docker.
@@ -155,7 +164,7 @@ python3 tools/gen_supply_abox.py
 cd web && npm install && npm run dev
 
 # Tests and benchmark
-cd app && cargo test            # 57 tests, run from app/ (reads ../rules and the root TTL files)
+cd app && cargo test            # 61 tests, run from app/ (reads ../rules and the root TTL files)
 cd app && cargo run --release -- bench
 
 # Optional: GraphDB Workbench on http://localhost:7200
