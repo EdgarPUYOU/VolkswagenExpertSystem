@@ -157,7 +157,7 @@ Backend (`services/chat.rs`):
 
 Connecting a language model later only replaces the planner; the tools, the endpoints and the UI stay as they are:
 
-1. Read the key from the environment (`LLM_API_KEY`, optional `LLM_BASE_URL` and `LLM_MODEL`, loaded from `.env`; **done**, see `config.rs`); keep it on the server and never send it to the browser. Add an HTTP client crate for the call.
+1. Read the key from the environment (`AI_API_KEY`, optional `AI_BASE_URL` and `AI_MODEL`, loaded from `.env`; **done**, see `config.rs`); keep it on the server and never send it to the browser. Add an HTTP client crate for the call.
 2. Send the user's message (and the history the request carries) with `chat::tools()` as the tool list (converted to OpenAI function format; **done in `services/llm.rs` with the `async-openai` SDK against DeepSeek**) and a system prompt that says: answer only from tool results, state that the data is synthetic, and use `list_entities` to resolve names.
 3. On a tool-use response, run `chat::call_tool` in-process and return the `summary` plus a trimmed `data` as the tool result. Keep the returned `blocks` for the UI. Repeat until the model gives a final answer.
 4. Return a `Reply` whose `text` is the model's answer, `blocks` are the collected blocks, `tool_calls` lists what ran, and `planner` is `"llm"`; set `llm: true` in `/api/chat/status` (the bubble then labels itself "Language model with tools").

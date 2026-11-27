@@ -1,6 +1,6 @@
 # Dev and prod entry points. Run `make help` for the list.
 .DEFAULT_GOAL := help
-.PHONY: help env dev dev-api dev-web install web-build build prod prod-docker prod-docker-down graphdb seed test lint bench clean
+.PHONY: help env dev dev-api dev-web install web-build build prod prod-docker prod-docker-down deploy graphdb seed test lint bench clean
 
 BIND ?= 0.0.0.0:8000
 BIN  := app/target/release/vw-erp
@@ -37,6 +37,9 @@ prod-docker: ## Prod: Docker Compose with Caddy and the app (needs .env, see .en
 
 prod-docker-down: ## Stop the prod Docker Compose stack
 	docker compose -f docker-compose.prod.yml down
+
+deploy: ## Deploy to the VPS in DEPLOY_HOST (rsync, build there, restart; see docs/deploy.md)
+	./scripts/deploy.sh
 
 graphdb: ## Dev: GraphDB Workbench on :7200 for browsing the KG
 	docker compose up -d graphdb

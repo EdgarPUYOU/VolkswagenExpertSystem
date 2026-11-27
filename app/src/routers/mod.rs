@@ -19,7 +19,10 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
+use futures_util::Stream;
 use serde::Deserialize;
+use std::convert::Infallible;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 
@@ -79,6 +82,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/scenarios/combined/{id}", get(get_combined))
         .route("/api/scenarios/{id}", get(get_scenario))
         .route("/api/chat", post(chat))
+        .route("/api/chat/stream", post(chat_stream))
         .route("/api/chat/status", get(chat_status))
         .route("/api/chat/tools", get(chat_tools))
         .route("/api/chat/tools/{name}", post(chat_tool))
@@ -288,6 +292,58 @@ async fn chat(State(s): State<AppState>, Json(req): Json<ChatRequest>) -> ApiRes
         return Ok(Json(json!(reply)));
     }
     Ok(Json(json!(chat::plan(&s.kg, &snap, &md, &sd, &req.message, &today()).map_err(fail)?)))
+}
+
+/// The chat as Server-Sent Events: `text` pieces as the model writes them, `tool` and `blocks` while tools
+/// run, then `done` with the whole reply (the same JSON `POST /api/chat` returns). If the model fails
+/// part-way, a `reset` clears what was streamed and the rule planner's answer follows in `done`.
+async fn chat_stream(State(s): State<AppState>, Json(req): Json<ChatRequest>) -> Sse<impl Stream<Item = Result<SseEvent, Infallible>>> {
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Value>();
+    tokio::spawn(async move {
+        if let Err(e) = run_chat_stream(&s, &req, &tx).await {
+            tracing::error!(error = %format!("{e:#}"), "chat stream failed");
+            let _ = tx.send(json!({ "type": "error", "message": e.to_string() }));
+        }
+    });
+    let events = futures_util::stream::unfold(rx, |mut rx| async move {
+        let v = rx.recv().await?;
+        Some((Ok(SseEvent::default().data(v.to_string())), rx))
+    });
+    Sse::new(events).keep_alive(KeepAlive::default())
+}
+
+async fn run_chat_stream(s: &AppState, req: &ChatRequest, tx: &tokio::sync::mpsc::UnboundedSender<Value>) -> anyhow::Result<()> {
+    let (snap, md, sd) = sales_ctx(s)?;
+    let today = today();
+    let mut note = None;
+    if let Some(backend) = &s.backend {
+        let cx = llm::Ctx { kg: &s.kg, snap: &snap, md: &md, sd: &sd };
+        let mut emit = |ev: llm::Event| {
+            let v = match ev {
+                llm::Event::Text(delta) => json!({ "type": "text", "delta": delta }),
+                llm::Event::Tool(name) => json!({ "type": "tool", "name": name }),
+                llm::Event::Blocks(blocks) => json!({ "type": "blocks", "blocks": blocks }),
+            };
+            let _ = tx.send(v);
+        };
+        match llm::answer_stream(backend, &s.llm, &cx, &req.message, &req.history, &today, &mut emit).await {
+            Ok(reply) => {
+                let _ = tx.send(json!({ "type": "done", "reply": reply }));
+                return Ok(());
+            }
+            Err(e) => {
+                tracing::warn!(error = %format!("{e:#}"), "model call failed, using the rule planner");
+                let _ = tx.send(json!({ "type": "reset" }));
+                note = Some("The language model could not be reached, so this answer comes from keyword matching. ");
+            }
+        }
+    }
+    let mut reply = chat::plan(&s.kg, &snap, &md, &sd, &req.message, &today)?;
+    if let Some(n) = note {
+        reply.text = format!("{n}{}", reply.text);
+    }
+    let _ = tx.send(json!({ "type": "done", "reply": reply }));
+    Ok(())
 }
 
 async fn chat_status(State(s): State<AppState>) -> Json<Value> {

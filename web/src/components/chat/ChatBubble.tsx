@@ -2,7 +2,7 @@ import { IconMessageChatbot, IconX } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
-import { api, type ChatBlock, type ChatReply } from '@/lib/api'
+import { api, streamChat, type ChatBlock, type ChatReply, type ChatStreamEvent } from '@/lib/api'
 import { BlockView } from './BlockView'
 
 interface Message {
@@ -11,6 +11,12 @@ interface Message {
   blocks?: ChatBlock[]
   toolCalls?: ChatReply['tool_calls']
   error?: boolean
+}
+
+interface Streaming {
+  text: string
+  blocks: ChatBlock[]
+  tool?: string
 }
 
 const STORAGE_KEY = 'vw-chat'
@@ -34,6 +40,8 @@ export function ChatBubble() {
   const [messages, setMessages] = useState<Message[]>(load)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [stream, setStream] = useState<Streaming | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const latestRef = useRef<HTMLDivElement>(null)
   const status = useQuery({ queryKey: ['chat-status'], queryFn: api.chatStatus, enabled: open })
@@ -47,7 +55,7 @@ export function ChatBubble() {
     // show a new answer from its first line; keep the bottom in view while waiting
     if (!busy && messages.at(-1)?.role === 'assistant') latestRef.current?.scrollIntoView({ block: 'start' })
     else endRef.current?.scrollIntoView({ block: 'end' })
-  }, [messages, open, busy])
+  }, [messages, open, busy, stream])
 
   useEffect(() => {
     if (!open) return
@@ -56,20 +64,71 @@ export function ChatBubble() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
+  // closing the chat (or unmounting) cancels an in-flight stream
+  useEffect(() => {
+    if (!open) abortRef.current?.abort()
+  }, [open])
+  useEffect(() => () => abortRef.current?.abort(), [])
+
   async function send(text: string) {
     const message = text.trim()
     if (!message || busy) return
     setInput('')
     setMessages((m) => [...m, { role: 'user', text: message }])
     setBusy(true)
+    setStream({ text: '', blocks: [] })
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    const history = messages.filter((m) => !m.error).slice(-8).map((m) => ({ role: m.role, content: m.text }))
+    const acc: { text: string; blocks: ChatBlock[]; final: Message | null } = { text: '', blocks: [], final: null }
+    const onEvent = (ev: ChatStreamEvent) => {
+      if (ctrl.signal.aborted) return
+      switch (ev.type) {
+        case 'text':
+          acc.text += ev.delta
+          setStream((s) => ({ text: (s?.text ?? '') + ev.delta, blocks: s?.blocks ?? [] }))
+          break
+        case 'tool':
+          setStream((s) => ({ text: s?.text ?? '', blocks: s?.blocks ?? [], tool: ev.name }))
+          break
+        case 'blocks':
+          acc.blocks = [...acc.blocks, ...ev.blocks]
+          setStream((s) => ({ text: s?.text ?? '', blocks: [...(s?.blocks ?? []), ...ev.blocks] }))
+          break
+        case 'reset':
+          acc.text = ''
+          acc.blocks = []
+          setStream({ text: '', blocks: [] })
+          break
+        case 'done':
+          acc.final = { role: 'assistant', text: ev.reply.text, blocks: ev.reply.blocks, toolCalls: ev.reply.tool_calls }
+          break
+        case 'error':
+          acc.final = { role: 'assistant', text: ev.message, error: true }
+          break
+      }
+    }
     try {
-      const history = messages.filter((m) => !m.error).slice(-8).map((m) => ({ role: m.role, content: m.text }))
-      const reply = await api.chat(message, history)
-      setMessages((m) => [...m, { role: 'assistant', text: reply.text, blocks: reply.blocks, toolCalls: reply.tool_calls }])
+      await streamChat(message, history, onEvent, ctrl.signal)
+      if (!ctrl.signal.aborted) {
+        const msg: Message =
+          acc.final ??
+          (acc.text || acc.blocks.length > 0
+            ? { role: 'assistant', text: acc.text, blocks: acc.blocks }
+            : { role: 'assistant', text: 'The answer stream ended without a reply.', error: true })
+        setMessages((m) => [...m, msg])
+      }
     } catch (e) {
-      setMessages((m) => [...m, { role: 'assistant', text: e instanceof Error ? e.message : 'Something went wrong.', error: true }])
+      if (!ctrl.signal.aborted) {
+        setMessages((m) => [...m, { role: 'assistant', text: e instanceof Error ? e.message : 'Something went wrong.', error: true }])
+      }
     } finally {
-      setBusy(false)
+      if (abortRef.current === ctrl) {
+        abortRef.current = null
+        setStream(null)
+        setBusy(false)
+      }
     }
   }
 
@@ -123,7 +182,22 @@ export function ChatBubble() {
                 </div>
               </div>
             ))}
-            {busy && <div className="text-muted-foreground text-sm">Working on it…</div>}
+            {busy && (stream && (stream.text || stream.blocks.length > 0 || stream.tool) ? (
+              <div className="flex justify-start">
+                <div className="bg-muted max-w-[95%] space-y-2 rounded-xl px-3 py-2 text-sm">
+                  {stream.text && (
+                    <p className="whitespace-pre-wrap">
+                      {stream.text}
+                      <span aria-hidden className="bg-foreground/50 ml-0.5 inline-block h-3.5 w-1.5 animate-pulse align-text-bottom" />
+                    </p>
+                  )}
+                  {stream.blocks.map((b, j) => <BlockView key={j} block={b} onNavigate={() => setOpen(false)} />)}
+                  {stream.tool && <div className="text-muted-foreground text-xs">Running {stream.tool}…</div>}
+                </div>
+              </div>
+            ) : (
+              <div className="text-muted-foreground text-sm">Working on it…</div>
+            ))}
             {messages.length === 0 && status.data && (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {status.data.suggestions.map((s) => (

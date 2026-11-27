@@ -3,7 +3,7 @@
 //! SPARQL and never gets the data directly: only each tool's summary plus its trimmed JSON.
 //!
 //! The transport is the OpenAI SDK (`async-openai`), pointed at any OpenAI-compatible API such as
-//! DeepSeek through `LLM_BASE_URL`. Bodies and replies are plain JSON (the SDK's "bring your own
+//! an OpenAI-compatible API through `AI_BASE_URL`. Bodies and replies are plain JSON (the SDK's "bring your own
 //! types" mode), so provider quirks cannot break strict typing. The API key stays in this process.
 
 use super::chat::{self, Block, Reply, ToolCall, Turn};
@@ -13,7 +13,9 @@ use super::sales::SalesData;
 use crate::config::LlmConfig;
 use anyhow::{anyhow, bail, Context, Result};
 use async_openai::{config::OpenAIConfig, Client};
+use futures_util::StreamExt;
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 /// Model calls in one conversation turn (each tool round trip is one call).
@@ -32,25 +34,64 @@ pub struct Ctx<'a> {
     pub sd: &'a SalesData,
 }
 
+/// What a conversation turn reports while it runs, so the UI can show the answer as it is written.
+#[derive(Debug, Clone)]
+pub enum Event {
+    /// A piece of the model's answer.
+    Text(String),
+    /// A tool started.
+    Tool(String),
+    /// UI blocks a tool produced.
+    Blocks(Vec<Block>),
+}
+
+/// Receives the pieces of a model reply as they arrive.
+pub type OnText<'a> = &'a mut (dyn FnMut(&str) + Send);
+
 /// Where chat-completion requests go. The SDK client in production, a script in tests.
-pub trait ChatBackend {
+pub trait ChatBackend: Sync {
     fn complete(&self, body: Value) -> impl std::future::Future<Output = Result<Value>> + Send;
+
+    /// Same as `complete`, but `on_text` gets each piece of the answer as it arrives. Returns the whole
+    /// reply in the non-streaming shape (`choices[0].message`). A backend that cannot stream sends the
+    /// text once at the end.
+    fn complete_stream(&self, body: Value, on_text: OnText<'_>) -> impl std::future::Future<Output = Result<Value>> + Send {
+        async move {
+            let reply = self.complete(body).await?;
+            if let Some(text) = reply["choices"][0]["message"]["content"].as_str().filter(|t| !t.is_empty()) {
+                on_text(text);
+            }
+            Ok(reply)
+        }
+    }
 }
 
 pub struct SdkBackend {
     client: Client<OpenAIConfig>,
+    reasoning_effort: Option<String>,
 }
 
 impl SdkBackend {
     pub fn new(cfg: &LlmConfig) -> Option<SdkBackend> {
         let key = cfg.api_key.as_ref().filter(|k| !k.expose().is_empty())?;
         let config = OpenAIConfig::new().with_api_key(key.expose()).with_api_base(&cfg.base_url);
-        Some(SdkBackend { client: Client::with_config(config) })
+        Some(SdkBackend { client: Client::with_config(config), reasoning_effort: cfg.reasoning_effort.clone() })
+    }
+}
+
+impl SdkBackend {
+    /// Adds the provider-specific `reasoning_effort` when one is configured.
+    fn prepare(&self, mut body: Value) -> Value {
+        if let Some(effort) = &self.reasoning_effort {
+            body["reasoning_effort"] = json!(effort);
+        }
+        body
     }
 }
 
 impl ChatBackend for SdkBackend {
     async fn complete(&self, body: Value) -> Result<Value> {
+        let body = self.prepare(body);
         let chat = self.client.chat();
         match tokio::time::timeout(CALL_TIMEOUT, chat.create_byot::<Value, Value>(body)).await {
             Ok(Ok(v)) => Ok(v),
@@ -58,6 +99,78 @@ impl ChatBackend for SdkBackend {
             Ok(Err(e)) => Err(anyhow!("model API error: {e}")),
             Err(_) => Err(anyhow!("model API did not answer within {} seconds", CALL_TIMEOUT.as_secs())),
         }
+    }
+
+    async fn complete_stream(&self, body: Value, on_text: OnText<'_>) -> Result<Value> {
+        let mut body = self.prepare(body);
+        body["stream"] = json!(true);
+        let chat = self.client.chat();
+        let mut stream = match tokio::time::timeout(CALL_TIMEOUT, chat.create_stream_byot::<Value, Value>(body)).await {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => return Err(anyhow!("model API error: {e}")),
+            Err(_) => return Err(anyhow!("model API did not answer within {} seconds", CALL_TIMEOUT.as_secs())),
+        };
+        let mut acc = StreamAcc::default();
+        loop {
+            // the timeout is per chunk, so a long answer is fine but a stalled one is not
+            match tokio::time::timeout(CALL_TIMEOUT, stream.next()).await {
+                Ok(Some(Ok(chunk))) => {
+                    if let Some(piece) = acc.push(&chunk) {
+                        on_text(&piece);
+                    }
+                }
+                Ok(Some(Err(e))) => return Err(anyhow!("model API error: {e}")),
+                Ok(None) => break,
+                Err(_) => return Err(anyhow!("model API stopped sending for {} seconds", CALL_TIMEOUT.as_secs())),
+            }
+        }
+        Ok(acc.finish())
+    }
+}
+
+/// Rebuilds a whole reply from `chat.completion.chunk` deltas: the text, and tool calls whose names and
+/// arguments arrive in fragments keyed by index.
+#[derive(Default)]
+struct StreamAcc {
+    content: String,
+    calls: BTreeMap<u64, (String, String, String)>,
+}
+
+impl StreamAcc {
+    /// Takes one chunk and returns the text it carried, if any.
+    fn push(&mut self, chunk: &Value) -> Option<String> {
+        let delta = &chunk["choices"][0]["delta"];
+        for c in delta["tool_calls"].as_array().into_iter().flatten() {
+            let slot = self.calls.entry(c["index"].as_u64().unwrap_or(0)).or_default();
+            if let Some(id) = c["id"].as_str().filter(|v| !v.is_empty()) {
+                slot.0 = id.to_string();
+            }
+            if let Some(name) = c["function"]["name"].as_str() {
+                slot.1.push_str(name);
+            }
+            if let Some(args) = c["function"]["arguments"].as_str() {
+                slot.2.push_str(args);
+            }
+        }
+        let piece = delta["content"].as_str().filter(|t| !t.is_empty())?;
+        self.content.push_str(piece);
+        Some(piece.to_string())
+    }
+
+    fn finish(self) -> Value {
+        let mut message = json!({ "role": "assistant", "content": self.content });
+        if !self.calls.is_empty() {
+            let calls: Vec<Value> = self
+                .calls
+                .into_iter()
+                .map(|(i, (id, name, args))| {
+                    let id = if id.is_empty() { format!("call_{i}") } else { id };
+                    json!({ "id": id, "type": "function", "function": { "name": name, "arguments": args } })
+                })
+                .collect();
+            message["tool_calls"] = json!(calls);
+        }
+        json!({ "choices": [{ "message": message }] })
     }
 }
 
@@ -105,6 +218,20 @@ fn run_tool(cx: &Ctx, name: &str, raw_args: &str, today: &str) -> (String, Vec<B
 }
 
 pub async fn converse<B: ChatBackend>(backend: &B, model: &str, cx: &Ctx<'_>, message: &str, history: &[Turn], today: &str) -> Result<Reply> {
+    converse_stream(backend, model, cx, message, history, today, &mut |_| {}).await
+}
+
+/// Runs one conversation turn and reports progress through `emit`: the answer text as it is written,
+/// each tool as it starts, and the blocks a tool produced. The returned reply is the whole turn.
+pub async fn converse_stream<B: ChatBackend>(
+    backend: &B,
+    model: &str,
+    cx: &Ctx<'_>,
+    message: &str,
+    history: &[Turn],
+    today: &str,
+    emit: &mut (dyn FnMut(Event) + Send),
+) -> Result<Reply> {
     let tools = tool_definitions();
     let mut messages = vec![json!({ "role": "system", "content": system_prompt(today) })];
     let skip = history.len().saturating_sub(MAX_HISTORY);
@@ -119,7 +246,13 @@ pub async fn converse<B: ChatBackend>(backend: &B, model: &str, cx: &Ctx<'_>, me
     let mut calls: Vec<ToolCall> = Vec::new();
     for _ in 0..MAX_STEPS {
         let body = json!({ "model": model, "messages": messages, "tools": tools, "temperature": 0.1, "max_tokens": 1500 });
-        let resp = backend.complete(body).await?;
+        let mut streamed = false;
+        let resp = backend
+            .complete_stream(body, &mut |t| {
+                streamed = true;
+                emit(Event::Text(t.to_string()));
+            })
+            .await?;
         let msg = resp["choices"][0]["message"].clone();
         if !msg.is_object() {
             bail!("the model reply had no message");
@@ -132,12 +265,20 @@ pub async fn converse<B: ChatBackend>(backend: &B, model: &str, cx: &Ctx<'_>, me
             }
             return Ok(Reply { text, blocks, tool_calls: calls, planner: "llm" });
         }
+        if streamed {
+            // text before a tool call ("let me check") must not run into the next piece
+            emit(Event::Text("\n\n".into()));
+        }
         messages.push(json!({ "role": "assistant", "content": msg.get("content").cloned().unwrap_or(Value::Null), "tool_calls": requested }));
         for c in &requested {
             let id = c["id"].as_str().unwrap_or_default();
             let name = c["function"]["name"].as_str().unwrap_or_default();
+            emit(Event::Tool(name.to_string()));
             let (content, produced, args) = run_tool(cx, name, c["function"]["arguments"].as_str().unwrap_or(""), today);
             if !content.starts_with("error:") {
+                if !produced.is_empty() {
+                    emit(Event::Blocks(produced.clone()));
+                }
                 blocks.extend(produced);
                 calls.push(ToolCall { name: name.to_string(), args });
             }
@@ -150,6 +291,19 @@ pub async fn converse<B: ChatBackend>(backend: &B, model: &str, cx: &Ctx<'_>, me
 /// Convenience for the HTTP layer.
 pub async fn answer(backend: &SdkBackend, cfg: &LlmConfig, cx: &Ctx<'_>, message: &str, history: &[Turn], today: &str) -> Result<Reply> {
     converse(backend, &cfg.model, cx, message, history, today).await.context("language model planner")
+}
+
+/// Like `answer`, but reports progress through `emit` (see `converse_stream`).
+pub async fn answer_stream(
+    backend: &SdkBackend,
+    cfg: &LlmConfig,
+    cx: &Ctx<'_>,
+    message: &str,
+    history: &[Turn],
+    today: &str,
+    emit: &mut (dyn FnMut(Event) + Send),
+) -> Result<Reply> {
+    converse_stream(backend, &cfg.model, cx, message, history, today, emit).await.context("language model planner")
 }
 
 #[cfg(test)]
@@ -315,7 +469,7 @@ mod tests {
     }
 
     fn cfg(base: &str, key: &str) -> LlmConfig {
-        LlmConfig { api_key: key.parse().ok(), base_url: base.into(), model: "deepseek-chat".into() }
+        LlmConfig { api_key: key.parse().ok(), base_url: base.into(), model: "deepseek-chat".into(), reasoning_effort: None }
     }
 
     #[tokio::test]
@@ -339,5 +493,46 @@ mod tests {
         assert!(err.contains("Authentication Fails"), "{err}");
         assert!(!err.contains("sk-secret-value"), "{err}");
         assert!(SdkBackend::new(&cfg("http://x", "")).is_none(), "no key, no backend");
+    }
+
+    #[test]
+    fn stream_chunks_are_rebuilt_into_a_whole_reply() {
+        let mut acc = StreamAcc::default();
+        let chunk = |d: Value| json!({ "choices": [{ "delta": d }] });
+        assert_eq!(acc.push(&chunk(json!({ "role": "assistant", "content": "" }))), None);
+        assert_eq!(acc.push(&chunk(json!({ "content": "Hel" }))).as_deref(), Some("Hel"));
+        assert_eq!(acc.push(&chunk(json!({ "content": "lo" }))).as_deref(), Some("lo"));
+        acc.push(&chunk(json!({ "tool_calls": [{ "index": 0, "id": "c1", "function": { "name": "run_sce", "arguments": "" } }] })));
+        acc.push(&chunk(json!({ "tool_calls": [{ "index": 0, "function": { "name": "nario", "arguments": "{\"a\":" } }] })));
+        acc.push(&chunk(json!({ "tool_calls": [{ "index": 0, "function": { "arguments": "1}" } }] })));
+        acc.push(&chunk(json!({ "tool_calls": [{ "index": 1, "function": { "name": "list_entities", "arguments": "{}" } }] })));
+        let msg = acc.finish()["choices"][0]["message"].clone();
+        assert_eq!(msg["content"], "Hello");
+        let calls = msg["tool_calls"].as_array().unwrap();
+        assert_eq!(calls.len(), 2);
+        assert_eq!((calls[0]["id"].as_str(), calls[0]["function"]["name"].as_str(), calls[0]["function"]["arguments"].as_str()), (Some("c1"), Some("run_scenario"), Some("{\"a\":1}")));
+        assert_eq!(calls[1]["id"], "call_1", "a missing id gets a stable one");
+    }
+
+    #[tokio::test]
+    async fn a_turn_reports_text_tools_and_blocks_in_order() {
+        let script = Script::new(vec![
+            tool_call("call_1", "run_scenario", r#"{"shocks":[{"kind":"commodity","target":"NaturalRubber","percent":15}]}"#),
+            text("Rubber costs more."),
+        ]);
+        let w = world();
+        let cx = Ctx { kg: &w.3, snap: &w.0, md: &w.1, sd: &w.2 };
+        let mut seen: Vec<String> = vec![];
+        let r = converse_stream(&script, "m", &cx, "rubber +15%?", &[], "2026-11-27", &mut |e| {
+            seen.push(match e {
+                Event::Text(t) => format!("text:{t}"),
+                Event::Tool(n) => format!("tool:{n}"),
+                Event::Blocks(b) => format!("blocks:{}", !b.is_empty()),
+            })
+        })
+        .await
+        .unwrap();
+        assert_eq!(r.text, "Rubber costs more.");
+        assert_eq!(seen, vec!["tool:run_scenario", "blocks:true", "text:Rubber costs more."]);
     }
 }
