@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,7 +7,6 @@ const field =
   'border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-lg border px-3 text-sm outline-none focus-visible:ring-3'
 
 export default function Login() {
-  const qc = useQueryClient()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -19,13 +17,12 @@ export default function Login() {
     setBusy(true)
     setError(null)
     try {
-      const session = await api.login(username, password)
-      qc.clear()
-      qc.setQueryData(['session'], session)
+      await api.login(username, password)
+      // hard reload: drops every cached query and boots the app fresh with the new session cookie
+      window.location.reload()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed.')
       setPassword('')
-    } finally {
       setBusy(false)
     }
   }
