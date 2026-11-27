@@ -6,6 +6,7 @@ import {
   IconCloudStorm,
   IconFileText,
   IconLayoutDashboard,
+  IconLogout,
   IconSettings,
   IconShoppingCart,
   IconTimeline,
@@ -13,16 +14,19 @@ import {
   IconWorld,
 } from '@tabler/icons-react'
 import type { Icon } from '@tabler/icons-react'
-import { lazy, Suspense } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { lazy, Suspense, useEffect } from 'react'
 import { NavLink, Route, Routes } from 'react-router'
 import { ChatBubble } from '@/components/chat/ChatBubble'
 import { Separator } from '@/components/ui/separator'
+import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import Admin from '@/pages/Admin'
 import BadYear from '@/pages/BadYear'
 import Contracts from '@/pages/Contracts'
 import Dashboard from '@/pages/Dashboard'
 import Explain from '@/pages/Explain'
+import Login from '@/pages/Login'
 import Markets from '@/pages/Markets'
 import Models from '@/pages/Models'
 import Sales from '@/pages/Sales'
@@ -48,6 +52,25 @@ const nav: { to: string; label: string; icon: Icon }[] = [
 ]
 
 export default function App() {
+  const qc = useQueryClient()
+  const session = useQuery({ queryKey: ['session'], queryFn: api.me, staleTime: Infinity, retry: false })
+
+  // any API call that answers 401 (expired session, server restart) returns to the login page
+  useEffect(() => {
+    const out = () => qc.setQueryData(['session'], { auth_required: true, authenticated: false })
+    window.addEventListener('vw:signed-out', out)
+    return () => window.removeEventListener('vw:signed-out', out)
+  }, [qc])
+
+  if (session.isPending) return <p className="text-muted-foreground p-6 text-sm">Loading…</p>
+  if (session.data && !session.data.authenticated) return <Login />
+
+  const signOut = async () => {
+    await api.logout()
+    qc.clear()
+    qc.setQueryData(['session'], { auth_required: true, authenticated: false })
+  }
+
   return (
     <div className="flex min-h-screen">
       <aside className="bg-sidebar text-sidebar-foreground w-56 shrink-0 border-r p-4">
@@ -69,6 +92,16 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
+        {session.data?.auth_required && (
+          <button
+            type="button"
+            onClick={signOut}
+            className="text-muted-foreground hover:bg-sidebar-accent/60 mt-4 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm"
+          >
+            <IconLogout size={18} stroke={1.75} aria-hidden />
+            Sign out{session.data.user ? ` (${session.data.user})` : ''}
+          </button>
+        )}
       </aside>
       <main className="min-w-0 flex-1 p-6">
         <Suspense fallback={<p className="text-muted-foreground text-sm">Loading…</p>}>

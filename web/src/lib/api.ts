@@ -399,6 +399,7 @@ export interface GraphEntity {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init)
+  if (res.status === 401 && path !== '/api/login') window.dispatchEvent(new Event('vw:signed-out'))
   if (!res.ok) throw new Error((await res.text()) || `${path}: ${res.status}`)
   return res.json() as Promise<T>
 }
@@ -618,7 +619,21 @@ const q = (params: Record<string, string | number | undefined>) => {
   return str ? `?${str}` : ''
 }
 
+export interface Session {
+  auth_required: boolean
+  authenticated: boolean
+  user?: string
+}
+
 export const api = {
+  me: () => get<Session>('/api/me'),
+  login: (username: string, password: string) =>
+    request<Session>('/api/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    }),
+  logout: () => fetch('/api/logout', { method: 'POST' }),
   health: () => get<Health>('/health'),
   graphs: () => get<GraphStat[]>('/api/kg/graphs'),
   models: () => get<Row[]>('/api/models'),

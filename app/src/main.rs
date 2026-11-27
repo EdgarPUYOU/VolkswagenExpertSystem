@@ -1,3 +1,4 @@
+mod auth;
 mod bench;
 mod config;
 mod db;
@@ -137,8 +138,12 @@ async fn main() -> Result<()> {
                 db: Arc::new(Mutex::new(conn)),
                 graphs: Arc::new(graphs),
                 llm: Arc::new(llm_cfg.clone()),
+                auth: auth::Auth::from_config(&cli.config.app_user, cli.config.app_password.as_ref()),
                 backend: services::llm::SdkBackend::new(&llm_cfg).map(Arc::new),
             };
+            if state.auth.is_none() {
+                tracing::warn!("APP_PASSWORD is not set: login is OFF and every page and API route is open");
+            }
             let listener = tokio::net::TcpListener::bind(&bind).await?;
             tracing::info!(%bind, "listening");
             axum::serve(listener, routers::router(state))
