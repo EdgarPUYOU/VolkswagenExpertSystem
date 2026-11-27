@@ -7,7 +7,7 @@ export function PageHeader({ title, subtitle, children }: { title: string; subti
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold">{title}</h1>
+        <h1 className="text-xl font-semibold sm:text-2xl">{title}</h1>
         {subtitle && <p className="text-muted-foreground text-sm">{subtitle}</p>}
       </div>
       {children}

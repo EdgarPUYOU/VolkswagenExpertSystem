@@ -12,3 +12,5 @@ infra/graphdb-home/
 .playwright-mcp/
 .DS_Store
 *.swp
+
+.playwright*
