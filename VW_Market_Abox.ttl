@@ -61,7 +61,7 @@ vw:911 vw:co2GramsPerKm 215 ;
     vw:soldInMarket vw:Market_Germany, vw:Market_France, vw:Market_USA .
 vw:Taycan vw:co2GramsPerKm 0 ;
     vw:priceSegment "ElectricSport" ;
-    vw:soldInMarket vw:Market_Germany, vw:Market_France, vw:Market_USA ;
+    vw:soldInMarket vw:Market_Germany, vw:Market_CzechRepublic, vw:Market_France, vw:Market_USA ;
     vw:competesWith vw:Tesla_ModelS .
 vw:Cayenne vw:co2GramsPerKm 230 ;
     vw:priceSegment "LuxurySUV" ;

@@ -1,0 +1,16 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Illustrative campaigns and financing products. Figures are synthetic.
+
+vw:Campaign_ID4_Conquest a vw:IncentiveCampaign ; rdfs:label "ID.4 conquest offer" ; vw:campaignAppliesTo vw:ID4 .
+vw:Campaign_Enyaq_Family a vw:IncentiveCampaign ; rdfs:label "Enyaq family bonus" ; vw:campaignAppliesTo vw:Enyaq .
+vw:Campaign_Golf_Loyalty a vw:IncentiveCampaign ; rdfs:label "Golf loyalty offer" ; vw:campaignAppliesTo vw:Golf .
+vw:Campaign_Taycan_TestDrive a vw:IncentiveCampaign ; rdfs:label "Taycan test-drive event" ; vw:campaignAppliesTo vw:Taycan .
+vw:Campaign_Q5_Winter a vw:IncentiveCampaign ; rdfs:label "Q5 winter offer" ; vw:campaignAppliesTo vw:Q5 .
+vw:Campaign_Octavia_Fleet a vw:IncentiveCampaign ; rdfs:label "Octavia fleet offer" ; vw:campaignAppliesTo vw:Octavia .
+
+vw:Fin_Taycan_Lease36 a vw:Lease ; rdfs:label "Taycan lease, 36 months" ; vw:financingFor vw:Taycan ; vw:offeredInMarket vw:Market_CzechRepublic .
+vw:Fin_Taycan_Lease48 a vw:Lease ; rdfs:label "Taycan lease, 48 months" ; vw:financingFor vw:Taycan ; vw:offeredInMarket vw:Market_CzechRepublic .
+vw:Fin_Taycan_Loan48 a vw:Loan ; rdfs:label "Taycan loan, 48 months" ; vw:financingFor vw:Taycan ; vw:offeredInMarket vw:Market_CzechRepublic .
+vw:Fin_Taycan_Loan60 a vw:Loan ; rdfs:label "Taycan loan, 60 months" ; vw:financingFor vw:Taycan ; vw:offeredInMarket vw:Market_CzechRepublic .
