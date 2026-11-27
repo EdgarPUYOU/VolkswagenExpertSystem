@@ -1,0 +1,19 @@
+[package]
+name = "vw-erp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.105"
+axum = "0.8.9"
+chrono = { version = "0.4.45", default-features = false, features = ["std", "clock"] }
+clap = { version = "4.6.10", features = ["derive", "env"] }
+mime_guess = "2.0.5"
+oxigraph = { version = "0.5.13", default-features = false }
+rusqlite = { version = "0.43.0", features = ["bundled"] }
+rust-embed = { version = "8.14.0", features = ["mime-guess"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "signal"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["json", "env-filter"] }
