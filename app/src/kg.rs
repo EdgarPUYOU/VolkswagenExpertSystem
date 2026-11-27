@@ -203,6 +203,6 @@ fn term_value(term: &Term) -> String {
 pub fn load_for_test() -> (Kg, rusqlite::Connection) {
     let mut conn = rusqlite::Connection::open_in_memory().unwrap();
     crate::db::migrate(&mut conn).unwrap();
-    let (kg, _, _) = Kg::load(Path::new(".."), Path::new("../rules"), &conn).unwrap();
+    let (kg, _, _) = Kg::load(Path::new("../ontology"), Path::new("../rules"), &conn).unwrap();
     (kg, conn)
 }

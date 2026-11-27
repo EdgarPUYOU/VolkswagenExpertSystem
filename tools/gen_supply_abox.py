@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Generate VW_Supply_Abox.ttl and patch VW_Contracts_*.ttl for the supply-terms module.
+"""Generate ontology/VW_Supply_Abox.ttl and patch ontology/VW_Contracts_*.ttl for the supply-terms module.
 
 Run from the repo root:  python3 tools/gen_supply_abox.py
 
 The data tables below are the source of truth for the illustrative supply terms.
-The script is safe to run again: it rewrites VW_Supply_Abox.ttl and only patches the
+The script is safe to run again: it rewrites ontology/VW_Supply_Abox.ttl and only patches the
 contract files when they have not been patched yet.
 """
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent / "ontology"
 
 # contract number -> (component local name, supplier country) is read from the A-box; the tables below
 # only hold the terms that are new.

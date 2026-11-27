@@ -60,7 +60,7 @@ mod tests {
 
     #[test]
     fn loads_all_modules_into_named_graphs() {
-        let (kg, stats) = Kg::load_dir(Path::new("..")).unwrap();
+        let (kg, stats) = Kg::load_dir(Path::new("../ontology")).unwrap();
         assert_eq!(stats.len(), 18, "nine original TTL files plus finance, supply, risk, market and campaign modules");
         assert_eq!(stats.iter().map(|s| s.triples).sum::<usize>(), kg.len().unwrap());
     }
@@ -118,7 +118,7 @@ mod inference_tests {
     fn reaches_a_fixpoint_and_is_idempotent() {
         let mut conn = rusqlite::Connection::open_in_memory().unwrap();
         crate::db::migrate(&mut conn).unwrap();
-        let (kg, _, first) = Kg::load(Path::new(".."), Path::new("../rules"), &conn).unwrap();
+        let (kg, _, first) = Kg::load(Path::new("../ontology"), Path::new("../rules"), &conn).unwrap();
         assert!(first.inferred > 0);
         let before = kg.len().unwrap();
         let again = kg.infer(Path::new("../rules")).unwrap();

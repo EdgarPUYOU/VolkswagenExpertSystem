@@ -6,7 +6,7 @@
 # Vehicle A-box assertions for the Volkswagen ontology.
 # Seat model and manufacturer assignments below are illustrative.
 # Component assignments and illustrative planned production are grouped with each model.
-# Sales profiles and model-fit tags are in VW_Sales_data.ttl.
+# Sales profiles and model-fit tags are in VW_Sales_Abox.ttl.
 
 # Powertrain Categories
 vw:BatteryElectric a vw:Powertrain ;

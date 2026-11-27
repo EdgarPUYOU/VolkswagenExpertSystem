@@ -4,7 +4,7 @@
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# Sales ontology schema. Load with VWGroup2.ttl, VW_Sales_data.ttl, and VW_sales_rules.ttl.
+# Sales ontology schema. Load with VWGroup_Tbox.ttl, VWGroup_Abox.ttl, VW_Sales_Abox.ttl, and VW_sales_rules.ttl.
 
 vw:SalesOntology a owl:Ontology ;
     rdfs:label "Volkswagen Sales Ontology" ;

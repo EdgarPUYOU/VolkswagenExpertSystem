@@ -5,7 +5,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # Vehicle T-Box schema. Sales vocabulary is in VW_Sales.ttl.
-# Vehicle instance data is in VWGroup2_data.ttl; portfolio rules are in VW_rules.ttl.
+# Vehicle instance data is in VWGroup_Abox.ttl; portfolio rules are in VWGroup_rules.ttl.
 
 vw:VolkswagenOntology a owl:Ontology ;
     rdfs:label "Volkswagen Group Expert System Ontology" .

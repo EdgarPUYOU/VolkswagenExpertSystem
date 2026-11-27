@@ -29,7 +29,7 @@ impl std::fmt::Debug for Secret {
 #[derive(clap::Args, Debug, Clone)]
 pub struct Config {
     /// Directory holding the *.ttl files. Each file is loaded into its own named graph.
-    #[arg(long, env = "ONTOLOGY_DIR", default_value = "..")]
+    #[arg(long, env = "ONTOLOGY_DIR", default_value = "../ontology")]
     pub ontology_dir: PathBuf,
 
     /// Directory holding the *.ru SPARQL update rule files, applied in name order until nothing new is derived.
@@ -82,7 +82,7 @@ mod tests {
 
     fn config(key: Option<&str>, url: &str) -> Config {
         Config {
-            ontology_dir: "..".into(),
+            ontology_dir: "../ontology".into(),
             rules_dir: "../rules".into(),
             sqlite_path: "x.db".into(),
             llm_api_key: key.map(|k| k.parse().unwrap()),

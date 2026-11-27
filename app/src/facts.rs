@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn numbers_are_no_longer_in_the_ttl_files() {
-        let (kg, stats) = Kg::load_dir(std::path::Path::new("..")).unwrap();
+        let (kg, stats) = Kg::load_dir(std::path::Path::new("../ontology")).unwrap();
         let rows = kg.select("PREFIX vw: <http://example.org/volkswagen/> SELECT ?s WHERE { ?s vw:price ?p }").unwrap();
         assert!(rows.is_empty(), "prices come from SQLite now");
         assert!(stats.iter().all(|s| !s.graph.ends_with("erp-facts")));
@@ -97,11 +97,11 @@ mod tests {
     fn changing_a_number_in_sqlite_changes_the_graph_and_the_rules() {
         let (_, conn) = crate::kg::load_for_test();
         let budget_rule = "SELECT ?c WHERE { ?c vw:withinBudget vw:ID4 }";
-        let (kg, _, _) = Kg::load(std::path::Path::new(".."), std::path::Path::new("../rules"), &conn).unwrap();
+        let (kg, _, _) = Kg::load(std::path::Path::new("../ontology"), std::path::Path::new("../rules"), &conn).unwrap();
         let before = run(&kg, budget_rule).unwrap().len();
         conn.execute("UPDATE model_facts SET price_eur = 500000 WHERE model_iri LIKE '%/ID4'", []).unwrap();
         conn.execute("UPDATE model_facts SET planned_units = planned_units * 2 WHERE model_iri LIKE '%/Golf'", []).unwrap();
-        let (kg, _, _) = Kg::load(std::path::Path::new(".."), std::path::Path::new("../rules"), &conn).unwrap();
+        let (kg, _, _) = Kg::load(std::path::Path::new("../ontology"), std::path::Path::new("../rules"), &conn).unwrap();
         let price = run(&kg, "SELECT ?p WHERE { vw:ID4 vw:price ?p }").unwrap();
         assert_eq!(price[0]["p"].parse::<f64>().unwrap(), 500000.0);
         assert!(before > 0 && run(&kg, budget_rule).unwrap().is_empty(), "a price above every budget drops the budget match");

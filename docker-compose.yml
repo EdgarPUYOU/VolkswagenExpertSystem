@@ -17,8 +17,8 @@ services:
       - "127.0.0.1:7200:7200"
     volumes:
       - ./infra/graphdb-home:/opt/graphdb/home
-      # Repo root, read-only: the TTL files appear under Import > Server files.
-      - ./:/root/graphdb-import:ro
+      # Turtle files, read-only: they appear under Import > Server files.
+      - ./ontology:/root/graphdb-import:ro
     environment:
       GDB_JAVA_OPTS: >-
         -Xmx2g -Xms2g

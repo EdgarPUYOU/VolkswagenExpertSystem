@@ -1,5 +1,5 @@
 # Multi-stage build: Node builds the web bundle, Rust embeds it into one binary,
-# a distroless image runs it. Build context is the repo root (the TTL files live there).
+# a distroless image runs it. Build context is the repo root.
 
 FROM node:24-slim AS web
 WORKDIR /w
@@ -16,7 +16,7 @@ RUN cargo build --release --manifest-path app/Cargo.toml
 
 FROM gcr.io/distroless/cc-debian12:nonroot
 COPY --from=build /src/app/target/release/vw-erp /usr/local/bin/vw-erp
-COPY *.ttl /ontology/
+COPY ontology/ /ontology/
 COPY rules/ /rules/
 ENV ONTOLOGY_DIR=/ontology \
     RULES_DIR=/rules \
