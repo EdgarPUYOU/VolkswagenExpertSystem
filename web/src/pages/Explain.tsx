@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 import { DataTable } from '@/components/data-table'
+import { PathGraph } from '@/components/path-graph'
 import { Field, Kpi, Loading, PageHeader, fieldClass } from '@/components/ui-bits'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -98,12 +99,21 @@ export default function Explain() {
             </CardContent>
           </Card>
           <DataTable columns={columns} data={t.components} />
-          <details className="text-sm">
-            <summary className="cursor-pointer font-medium">Knowledge-graph paths ({paths.length})</summary>
-            <ul className="text-muted-foreground mt-2 space-y-1 font-mono text-xs">
-              {paths.map((p) => <li key={p}>{p}</li>)}
-            </ul>
-          </details>
+          <Card>
+            <CardHeader>
+              <CardTitle>Knowledge-graph paths ({paths.length})</CardTitle>
+              <CardDescription>How a price index reaches the model through its supply contracts and components. Red outlines mark components that got more expensive.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <PathGraph components={t.components} />
+              <details className="text-sm">
+                <summary className="cursor-pointer font-medium">Show as text</summary>
+                <ul className="text-muted-foreground mt-2 space-y-1 font-mono text-xs">
+                  {paths.map((p) => <li key={p}>{p}</li>)}
+                </ul>
+              </details>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>
