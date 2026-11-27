@@ -127,6 +127,7 @@ vw:contractEndDate a owl:DatatypeProperty ;
     rdfs:domain vw:SupplyContract ;
     rdfs:range xsd:date .
 
-vw:contractCurrency a owl:DatatypeProperty ;
+vw:contractCurrency a owl:ObjectProperty ;
     rdfs:domain vw:SupplyContract ;
-    rdfs:range xsd:string .
+    rdfs:range vw:Currency ;
+    rdfs:comment "Currency the contract is invoiced in. The EUR unit prices are the reference value at the contract start rate." .

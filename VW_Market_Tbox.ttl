@@ -1,0 +1,38 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Market and regulation vocabulary: markets, regulations, competitors.
+# Numbers that change (units per market, competitor prices) live in SQLite and join by IRI.
+
+vw:MarketOntology a owl:Ontology ; rdfs:label "Volkswagen Market Ontology" .
+
+vw:Market a owl:Class ; rdfs:comment "A country market with a currency." .
+vw:Regulation a owl:Class .
+vw:CO2FleetTarget a owl:Class ; rdfs:subClassOf vw:Regulation .
+vw:EVSubsidy a owl:Class ; rdfs:subClassOf vw:Regulation .
+vw:ImportTariff a owl:Class ; rdfs:subClassOf vw:Regulation .
+vw:Competitor a owl:Class .
+vw:CompetitorModel a owl:Class .
+vw:SubsidyDependentModel a owl:Class ; rdfs:comment "Inferred: a model whose powertrain gets a subsidy in a market where it is sold." .
+vw:CO2PenaltyRiskModel a owl:Class ; rdfs:comment "Inferred: a car above the CO2 target in a market where the target applies." .
+
+vw:marketCurrency a owl:ObjectProperty ; rdfs:domain vw:Market ; rdfs:range vw:Currency .
+vw:marketCountry a owl:DatatypeProperty ; rdfs:domain vw:Market ; rdfs:range xsd:string ;
+    rdfs:comment "Matches vw:regionCountry on customer regions." .
+vw:soldInMarket a owl:ObjectProperty ; rdfs:domain vw:Model ; rdfs:range vw:Market .
+vw:co2GramsPerKm a owl:DatatypeProperty ; rdfs:domain vw:Model ; rdfs:range xsd:decimal .
+vw:priceSegment a owl:DatatypeProperty ; rdfs:range xsd:string ;
+    rdfs:comment "Segment shared by our models and competitor models, used to pair them." .
+vw:appliesToPowertrain a owl:ObjectProperty ; rdfs:domain vw:Regulation ; rdfs:range vw:Powertrain .
+vw:appliesInMarket a owl:ObjectProperty ; rdfs:domain vw:Regulation ; rdfs:range vw:Market .
+vw:targetGramsPerKm a owl:DatatypeProperty ; rdfs:domain vw:CO2FleetTarget ; rdfs:range xsd:decimal .
+vw:penaltyEurPerGram a owl:DatatypeProperty ; rdfs:domain vw:CO2FleetTarget ; rdfs:range xsd:decimal ;
+    rdfs:comment "EUR per g/km above target, per car sold." .
+vw:subsidyEur a owl:DatatypeProperty ; rdfs:domain vw:EVSubsidy ; rdfs:range xsd:decimal .
+vw:tariffPercent a owl:DatatypeProperty ; rdfs:domain vw:ImportTariff ; rdfs:range xsd:decimal .
+vw:competitorOf a owl:ObjectProperty ; rdfs:domain vw:CompetitorModel ; rdfs:range vw:Competitor .
+vw:competesWith a owl:ObjectProperty ; rdfs:domain vw:Model ; rdfs:range vw:CompetitorModel .
+vw:competitorPowertrain a owl:ObjectProperty ; rdfs:domain vw:CompetitorModel ; rdfs:range vw:Powertrain .

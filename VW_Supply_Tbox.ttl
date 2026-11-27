@@ -1,0 +1,61 @@
+@prefix vw:   <http://example.org/volkswagen/> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Supply-contract terms: indexation clauses, sourcing, alternative suppliers, payment terms.
+# Extends VW_Contracts_Tbox.ttl.
+
+vw:SupplyOntology a owl:Ontology ;
+    rdfs:label "Volkswagen Supply Terms Ontology" .
+
+vw:IndexationClause a owl:Class ;
+    rdfs:comment "Links part of a contract's unit price to a commodity index." .
+vw:SourcingType a owl:Class .
+vw:PaymentTerm a owl:Class .
+
+vw:hasIndexationClause a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:IndexationClause ;
+    owl:inverseOf vw:clauseOfContract .
+
+vw:clauseOfContract a owl:ObjectProperty ;
+    rdfs:domain vw:IndexationClause ;
+    rdfs:range vw:SupplyContract .
+
+vw:indexedTo a owl:ObjectProperty ;
+    rdfs:domain vw:IndexationClause ;
+    rdfs:range vw:CommodityIndex .
+
+vw:indexWeight a owl:DatatypeProperty ;
+    rdfs:domain vw:IndexationClause ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Share of the unit price that follows the index (0 to 1)." .
+
+vw:passThroughRatio a owl:DatatypeProperty ;
+    rdfs:domain vw:IndexationClause ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Share of an index move that the supplier passes on (0 to 1)." .
+
+vw:sourcingType a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:SourcingType .
+
+vw:alternativeSupplier a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:Supplier ;
+    rdfs:comment "A qualified second source for the component covered by the contract." .
+
+vw:hasPaymentTerm a owl:ObjectProperty ;
+    rdfs:domain vw:SupplyContract ;
+    rdfs:range vw:PaymentTerm .
+
+vw:paymentDays a owl:DatatypeProperty ;
+    rdfs:domain vw:PaymentTerm ;
+    rdfs:range xsd:integer .
+
+vw:plannedLaunchDate a owl:DatatypeProperty ;
+    rdfs:domain vw:Model ;
+    rdfs:range xsd:date ;
+    rdfs:comment "Next planned launch or refresh date (illustrative)." .

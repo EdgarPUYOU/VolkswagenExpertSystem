@@ -207,8 +207,7 @@ vw:rangeKm a owl:DatatypeProperty ;
     rdfs:domain vw:Model ;
     rdfs:range xsd:integer .
 
-vw:ElectricModel a owl:equivalentClass ;
-    owl:Class [
+vw:ElectricModel owl:equivalentClass [
         a owl:Class ;
         owl:intersectionOf (
             vw:Model
@@ -220,8 +219,7 @@ vw:ElectricModel a owl:equivalentClass ;
         )
     ] .
 
-vw:HybridModel a owl:equivalentClass ;
-    owl:Class [
+vw:HybridModel owl:equivalentClass [
         a owl:Class ;
         owl:intersectionOf (
             vw:Model
@@ -233,8 +231,7 @@ vw:HybridModel a owl:equivalentClass ;
         )
     ] .
 
-vw:CombustionModel a owl:equivalentClass ;
-    owl:Class [
+vw:CombustionModel owl:equivalentClass [
         a owl:Class ;
         owl:intersectionOf (
             vw:Model
