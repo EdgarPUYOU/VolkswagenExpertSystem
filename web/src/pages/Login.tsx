@@ -31,8 +31,9 @@ export default function Login() {
     <main className="flex min-h-screen items-center justify-center p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-lg">VW Expert System</CardTitle>
-          <CardDescription>Sign in to continue.</CardDescription>
+          <img src="/logo.png" alt="Universitas Gadjah Mada" className="mx-auto mb-2 h-28 w-auto dark:brightness-0 dark:invert" />
+          <CardTitle className="text-center text-lg">VW Expert System</CardTitle>
+          <CardDescription className="text-center">Sign in to continue.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">

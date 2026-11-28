@@ -91,7 +91,7 @@ export default function App() {
             end={n.to === '/'}
             onClick={() => setMenuOpen(false)}
             className={({ isActive }) =>
-              cn('flex items-center gap-2 rounded-md px-3 py-2 text-sm', isActive ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/60')
+              cn('flex items-center gap-2 rounded-md px-3 py-2 text-sm', isActive ? 'bg-secondary font-medium' : 'hover:bg-sidebar-accent/60')
             }
           >
             <n.icon size={18} stroke={1.75} aria-hidden />
@@ -119,7 +119,10 @@ export default function App() {
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* mobile top bar */}
       <header className="bg-sidebar text-sidebar-foreground sticky top-0 z-40 flex items-center justify-between border-b px-4 py-2 md:hidden">
-        <div className="font-semibold">VW Expert System</div>
+        <div className="flex items-center gap-2 font-semibold">
+          <img src="/logo.png" alt="Universitas Gadjah Mada" className="h-8 w-auto dark:brightness-0 dark:invert" />
+          VW Expert System
+        </div>
         <button
           type="button"
           aria-label={menuOpen ? 'Close menu' : 'Open menu'}
@@ -141,6 +144,7 @@ export default function App() {
       )}
       {/* desktop sidebar */}
       <aside className="bg-sidebar text-sidebar-foreground sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-hidden border-r p-4 md:flex">
+        <img src="/logo.png" alt="Universitas Gadjah Mada" className="mx-auto mb-3 h-20 w-auto dark:brightness-0 dark:invert" />
         <div className="mb-1 font-semibold">VW Expert System</div>
         <div className="text-muted-foreground mb-4 text-xs">synthetic demo data</div>
         <Separator className="mb-4" />
