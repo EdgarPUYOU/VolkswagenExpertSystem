@@ -3,7 +3,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{booktabs,amsmath,amssymb}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
 \usetheme{default}
 \usecolortheme{seahorse}
 \setbeamertemplate{navigation symbols}{}
@@ -65,13 +65,67 @@ A relationship or classification $\to$ graph. A value that changes or is a trans
 \end{frame}
 
 \begin{frame}{Methodology}
-\begin{enumerate}
-\item \textbf{Competency questions}: 19 questions fix the scope
-\item \textbf{Reuse and extend} existing portfolio, sales, contract ontologies
-\item \textbf{Separate by volatility} (graph vs SQL)
-\item \textbf{Rules as code}: versioned \texttt{.ru} files, tested
-\item \textbf{Vertical slices}: 8 steps, each with data, rules, API, UI, tests
-\end{enumerate}
+\centering
+\begin{tikzpicture}[node distance=3mm,every node/.style={font=\scriptsize}]
+\node[kg,text width=2.1cm] (a) {\textbf{1. Competency questions}\\19 questions fix the scope};
+\node[kg,text width=2.1cm,right=of a] (b) {\textbf{2. Reuse and extend}\\portfolio, sales, contract ontologies};
+\node[kg,text width=2.1cm,right=of b] (c) {\textbf{3. Separate by volatility}\\graph vs SQL};
+\node[kg,text width=2.1cm,right=of c] (d) {\textbf{4. Rules as code}\\versioned \texttt{.ru} files, tested};
+\node[app,text width=2.1cm,right=of d] (e) {\textbf{5. Vertical slices}\\8 steps: data, rules, API, UI, tests};
+\foreach \x/\y in {a/b,b/c,c/d,d/e}{\draw[arr] (\x)--(\y);}
+\draw[arr,dashed] (e.south)--++(0,-9mm)-|(a.south) node[lbl,pos=.25,below]{iterate: next slice answers more questions};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Methodology: separate by volatility}
+\centering
+\begin{tikzpicture}[node distance=8mm]
+\node[box] (q) {New piece\\of data};
+\node[diamond,draw,aspect=2.2,fill=yellow!15,font=\small,align=center,right=of q,inner sep=1pt] (d) {Changes over time\\or a transaction?};
+\node[kg,above right=2mm and 14mm of d] (g) {Knowledge graph};
+\node[db,below right=2mm and 14mm of d] (s) {SQLite};
+\draw[arr] (q)--(d);
+\draw[arr] (d)|-node[lbl,pos=.7,above]{no}(g);
+\draw[arr] (d)|-node[lbl,pos=.7,below]{yes}(s);
+\node[font=\scriptsize,align=left,right=3mm of g] {class, hierarchy, supplier link,\\clause $\to$ index};
+\node[font=\scriptsize,align=left,right=3mm of s] {index series, FX rate,\\price, volume, budget};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Methodology: rules as code}
+\centering
+\begin{tikzpicture}[node distance=9mm]
+\node[kg] (ru) {Rule files\\\texttt{.ru} (versioned)};
+\node[box,right=of ru] (up) {SPARQL Update\\pass $n$};
+\node[kg,right=of up] (inf) {Inferred graph\\one per rule file};
+\node[box,right=of inf] (chk) {New triples?};
+\node[app,below=8mm of chk] (done) {Fixpoint\\(3 passes, 834 triples)};
+\node[app,below=8mm of ru] (test) {Rust tests\\assert inferred facts};
+\draw[arr] (ru)--(up);\draw[arr] (up)--(inf);\draw[arr] (inf)--(chk);
+\draw[arr] (chk)--node[lbl,right]{no}(done);
+\draw[arr] (chk.north)--++(0,7mm)-|(up.north) node[lbl,pos=.25,above]{yes: repeat};
+\draw[arr,dashed] (test)--(ru);
+\draw[arr,dashed] (done)--(test);
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Methodology: vertical slices}
+\centering
+\begin{tikzpicture}[node distance=4mm]
+\node[kg] (d1) {Data};
+\node[kg,right=of d1] (r1) {Rules};
+\node[db,right=of r1] (s1) {Service};
+\node[app,right=of s1] (a1) {API};
+\node[app,right=of a1] (u1) {UI};
+\node[box,right=of u1] (t1) {Tests};
+\foreach \x/\y in {d1/r1,r1/s1,s1/a1,a1/u1,u1/t1}{\draw[arr] (\x)--(\y);}
+\node[font=\small,above=3mm of s1] {\textbf{One slice}: complete and demonstrable};
+\foreach \i in {1,...,8}{
+  \node[circle,draw,fill=blue!10,minimum size=7mm,font=\small] (c\i) at ({1.5*\i-1.2},-2.2) {S\i};
+}
+\foreach \i/\j in {1/2,2/3,3/4,4/5,5/6,6/7,7/8}{\draw[arr] (c\i)--(c\j);}
+\node[font=\scriptsize,below=2mm of c4,xshift=6mm] {8 slices, each answers a subset of the 19 questions};
+\end{tikzpicture}
 \end{frame}
 
 \begin{frame}{T-Box: the schema}
@@ -189,6 +243,21 @@ WHERE { ?model vw:hasComponent ?c .
 \end{itemize}
 \end{frame}
 
+\begin{frame}{Hybrid query flow}
+\centering
+\begin{tikzpicture}[node distance=8mm]
+\node[box] (q) {Question\\``rubber +15\%''};
+\node[kg,above right=1mm and 12mm of q] (sp) {SPARQL (Oxigraph)\\index $\to$ clause $\to$ contract\\$\to$ component $\to$ model $\to$ brand};
+\node[db,below right=1mm and 12mm of q] (sq) {SQL (SQLite)\\index series, FX,\\volume, overhead};
+\node[app,right=36mm of q] (mg) {Service\\merge and rank};
+\node[box,right=10mm of mg] (out) {Margin impact\\per brand};
+\draw[arr] (q)|-(sp);\draw[arr] (q)|-(sq);
+\draw[arr] (sp)-|node[lbl,pos=.2,above]{exposure paths}(mg);
+\draw[arr] (sq)-|node[lbl,pos=.2,below]{numbers}(mg);
+\draw[arr] (mg)--(out);
+\end{tikzpicture}
+\end{frame}
+
 \begin{frame}{Hybrid query: ``rubber +15\%''}
 \begin{enumerate}
 \item SPARQL walks index $\to$ clause $\to$ contract $\to$ component $\to$ model $\to$ brand
@@ -215,6 +284,23 @@ Scenario & combined ``bad year'', margin trace\\
 \vspace{3mm}
 
 Each = service + UI view + chat tool + Rust test.
+\end{frame}
+
+\begin{frame}{Explain graph: example route}
+\centering
+\begin{tikzpicture}[node distance=6mm,every node/.style={font=\scriptsize}]
+\node[kg] (i) {NaturalRubber\\index};
+\node[kg,right=of i] (c) {Clause 22};
+\node[kg,right=of c] (k) {Contract 22};
+\node[kg,right=of k] (p) {TyreSet\\Standard};
+\node[kg,right=of p] (m) {Golf};
+\draw[arr] (c)--node[lbl,above]{indexedTo}(i);
+\draw[arr] (k)--node[lbl,above]{hasClause}(c);
+\draw[arr] (k)--node[lbl,above]{covers}(p);
+\draw[arr] (m)--node[lbl,above]{hasComponent}(p);
+\draw[arr,dashed,blue!70!black] (m.south)--++(0,-9mm)-|node[lbl,pos=.25,below]{exposedToIndex (inferred by rule)}(i.south);
+\node[below=14mm of c,font=\scriptsize] {Solid: asserted in file. Dashed blue: inferred, tagged with its rule file. SQLite facts shown as a third class.};
+\end{tikzpicture}
 \end{frame}
 
 \begin{frame}{Explainability}
