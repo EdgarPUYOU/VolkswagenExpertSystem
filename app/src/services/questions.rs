@@ -323,6 +323,85 @@ pub struct Expiring {
     pub contracts: Vec<ExpiringContract>,
 }
 
+#[derive(Serialize, Debug)]
+pub struct ClauseDetail {
+    pub index: String,
+    pub weight: f64,
+    pub pass_through: f64,
+}
+
+#[derive(Serialize, Debug)]
+pub struct CoveredModel {
+    pub iri: String,
+    pub label: String,
+    pub brand: String,
+    pub planned: f64,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ContractDetail {
+    pub iri: String,
+    pub label: String,
+    pub supplier: String,
+    pub component: String,
+    pub currency: String,
+    pub start: String,
+    pub end: String,
+    pub days_left: i64,
+    pub sourcing: String,
+    pub alternatives: Vec<String>,
+    pub base_price: f64,
+    pub current_price: f64,
+    pub discount_price: Option<f64>,
+    pub tier: Option<f64>,
+    pub committed: f64,
+    pub projected: f64,
+    pub utilisation_pct: f64,
+    pub annual_spend: f64,
+    pub clauses: Vec<ClauseDetail>,
+    pub models: Vec<CoveredModel>,
+}
+
+pub fn contract_detail(snap: &Snapshot, iri: &str, today: &str) -> Result<ContractDetail> {
+    let Some(c) = snap.contracts.iter().find(|c| c.iri == iri) else {
+        return bad(format!("unknown contract '{iri}'"));
+    };
+    let end = parse_date(&c.end)?;
+    let mut models: Vec<CoveredModel> = snap
+        .models
+        .iter()
+        .filter(|m| snap.model_components.get(&m.iri).is_some_and(|cs| cs.contains(&c.component)))
+        .map(|m| CoveredModel { iri: m.iri.clone(), label: m.label.clone(), brand: m.brand_label.clone(), planned: m.planned })
+        .collect();
+    models.sort_by(|a, b| b.planned.total_cmp(&a.planned));
+    Ok(ContractDetail {
+        iri: c.iri.clone(),
+        label: c.label.clone(),
+        supplier: snap.supplier_label(&c.supplier),
+        component: snap.label_of_component(&c.component),
+        currency: c.currency.clone(),
+        start: c.start.clone(),
+        end: c.end.clone(),
+        days_left: (end - parse_date(today)?).num_days(),
+        sourcing: c.sourcing.clone(),
+        alternatives: c.alternatives.iter().map(|a| snap.supplier_label(a)).collect(),
+        base_price: c.base_price,
+        current_price: snap.price_at(c, &snap.asof, &Shocks::default())?,
+        discount_price: c.discount_price,
+        tier: c.tier,
+        committed: c.committed,
+        projected: c.projected,
+        utilisation_pct: if c.committed > 0.0 { c.projected / c.committed * 100.0 } else { 0.0 },
+        annual_spend: annual_spend(snap, c)?,
+        clauses: c
+            .clauses
+            .iter()
+            .map(|cl| ClauseDetail { index: snap.index_label(&cl.index), weight: cl.weight, pass_through: cl.pass })
+            .collect(),
+        models,
+    })
+}
+
 pub fn parse_date(s: &str) -> Result<NaiveDate> {
     NaiveDate::parse_from_str(s, "%Y-%m-%d").or_else(|_| bad(format!("'{s}' is not a date, expected YYYY-MM-DD")))
 }
@@ -808,6 +887,19 @@ mod tests {
         assert!(e.contracts.iter().all(|c| c.end.as_str() <= "2027-11-27"));
         assert_eq!(expiring(&snap, "2026-11-27", 3).unwrap().contracts.len(), 0);
         assert!(expiring(&snap, "soon", 12).unwrap_err().downcast_ref::<BadRequest>().is_some());
+    }
+
+    #[test]
+    fn contract_detail_lists_covered_models_and_rejects_unknown_iri() {
+        let snap = snap();
+        let iri = "http://example.org/volkswagen/SupplyContract_01_EA211_15TSI";
+        let d = contract_detail(&snap, iri, "2026-11-27").unwrap();
+        let labels: Vec<_> = d.models.iter().map(|m| m.label.as_str()).collect();
+        assert!(labels.contains(&"Golf") && labels.contains(&"Passat"));
+        assert_eq!(d.end, "2027-06-30");
+        assert!(d.days_left > 0 && d.annual_spend > 0.0);
+        assert!((d.utilisation_pct - d.projected / d.committed * 100.0).abs() < 1e-9);
+        assert!(contract_detail(&snap, "nope", "2026-11-27").unwrap_err().downcast_ref::<BadRequest>().is_some());
     }
 
     #[test]

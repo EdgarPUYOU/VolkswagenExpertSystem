@@ -222,6 +222,30 @@ export interface ExpiringContract {
   alternatives: string[]
 }
 
+export interface ContractDetail {
+  iri: string
+  label: string
+  supplier: string
+  component: string
+  currency: string
+  start: string
+  end: string
+  days_left: number
+  sourcing: string
+  alternatives: string[]
+  base_price: number
+  current_price: number
+  discount_price: number | null
+  tier: number | null
+  committed: number
+  projected: number
+  utilisation_pct: number
+  annual_spend: number
+  clauses: { index: string; weight: number; pass_through: number }[]
+  models: { iri: string; label: string; brand: string; planned: number }[]
+  review_reasons: string[]
+}
+
 export interface Expiring {
   today: string
   months: number
@@ -673,6 +697,7 @@ export const api = {
   savedScenario: (id: number) => get<{ id: number; name: string; result: ScenarioResult }>(`/api/scenarios/${id}`),
   currencyExposure: () => get<CurrencyExposure>('/api/exposure/currency'),
   sensitivity: (bump: number) => get<Sensitivity>(`/api/exposure/commodity${q({ bump })}`),
+  contractDetail: (iri: string) => get<ContractDetail>(`/api/contracts/detail${q({ iri })}`),
   savings: () => get<Savings>('/api/contracts/savings'),
   expiring: (months: number) => get<Expiring>(`/api/contracts/expiring${q({ months })}`),
   supplierRisk: () => get<SupplierRisk[]>('/api/suppliers/risk'),

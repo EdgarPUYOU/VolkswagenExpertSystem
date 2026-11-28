@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DataTable } from '@/components/data-table'
 import { Field, Kpi, Loading, PageHeader, fieldClass } from '@/components/ui-bits'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { api, eur, eurCompact, fmt, num, shortName, type ExpiringContract, type Row, type Savings } from '@/lib/api'
+import { api, eur, eurCompact, fmt, num, shortName, type ContractDetail, type ExpiringContract, type Row, type Savings } from '@/lib/api'
 
 const REASON_LABEL: Record<string, string> = {
   VolumeExceedsCommitment: 'over commitment',
@@ -70,7 +70,105 @@ const savingColumns: ColumnDef<Savings['rows'][number]>[] = [
   { accessorKey: 'annual_saving', header: 'Saving / year', cell: (c) => eurCompact.format(c.getValue<number>()) },
 ]
 
+function Item({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-muted-foreground text-xs">{label}</dt>
+      <dd className="text-sm font-medium">{children}</dd>
+    </div>
+  )
+}
+
+function ContractDialog({ iri, onClose }: { iri: string; onClose: () => void }) {
+  const detail = useQuery({ queryKey: ['contract', iri], queryFn: () => api.contractDetail(iri) })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const d: ContractDetail | undefined = detail.data
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="bg-background max-h-[90vh] w-full max-w-3xl space-y-4 overflow-y-auto rounded-xl border p-5 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">{d?.label ?? shortName(iri)}</h2>
+            <p className="text-muted-foreground text-xs">{shortName(iri)}</p>
+          </div>
+          <button className="text-muted-foreground hover:text-foreground text-xl leading-none" onClick={onClose} aria-label="Close">×</button>
+        </div>
+        <Loading query={detail} />
+        {d && (
+          <>
+            <div className="flex flex-wrap gap-1">
+              {d.review_reasons.length === 0 ? (
+                <Badge variant="secondary">no review flags</Badge>
+              ) : (
+                d.review_reasons.map((r) => (
+                  <Badge key={r} variant={r.endsWith('VolumeExceedsCommitment') ? 'destructive' : 'outline'}>
+                    {REASON_LABEL[shortName(r)] ?? shortName(r)}
+                  </Badge>
+                ))
+              )}
+            </div>
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Item label="Supplier">{d.supplier}</Item>
+              <Item label="Component">{d.component}</Item>
+              <Item label="Sourcing">{d.sourcing}</Item>
+              <Item label="Start">{d.start}</Item>
+              <Item label="End">{d.end}</Item>
+              <Item label="Time left">{d.days_left < 0 ? `expired ${-d.days_left} days ago` : `${fmt.format(d.days_left)} days`}</Item>
+              <Item label="Currency">{shortName(d.currency)}</Item>
+              <Item label="Annual spend">{eurCompact.format(d.annual_spend)}</Item>
+              <Item label="Alternative suppliers">{d.alternatives.length ? d.alternatives.join(', ') : 'none'}</Item>
+            </dl>
+            <h3 className="text-sm font-semibold">Volume and price</h3>
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Item label="Committed / year">{fmt.format(d.committed)}</Item>
+              <Item label="Projected / year">{fmt.format(d.projected)}</Item>
+              <Item label="Projected vs committed">{d.utilisation_pct.toFixed(0)}%</Item>
+              <Item label="Base price">{eur.format(d.base_price)}</Item>
+              <Item label="Price today (after indexation)">{eur.format(d.current_price)}</Item>
+              <Item label="Volume discount">
+                {d.discount_price != null && d.tier != null ? `${eur.format(d.discount_price)} from ${fmt.format(d.tier)} units` : 'none'}
+              </Item>
+            </dl>
+            <h3 className="text-sm font-semibold">Price indexation clauses</h3>
+            {d.clauses.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Fixed price, no index clauses.</p>
+            ) : (
+              <DataTable
+                columns={[
+                  { accessorKey: 'index', header: 'Index' },
+                  { accessorKey: 'weight', header: 'Weight', cell: (c) => `${(c.getValue<number>() * 100).toFixed(0)}%` },
+                  { accessorKey: 'pass_through', header: 'Pass-through', cell: (c) => `${(c.getValue<number>() * 100).toFixed(0)}%` },
+                ] as ColumnDef<ContractDetail['clauses'][number]>[]}
+                data={d.clauses}
+              />
+            )}
+            <h3 className="text-sm font-semibold">Models covered</h3>
+            <DataTable
+              columns={[
+                { accessorKey: 'label', header: 'Model' },
+                { accessorKey: 'brand', header: 'Brand' },
+                { accessorKey: 'planned', header: 'Planned units', cell: (c) => fmt.format(c.getValue<number>()) },
+              ] as ColumnDef<ContractDetail['models'][number]>[]}
+              data={d.models}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Contracts() {
+  const [selected, setSelected] = useState<string | null>(null)
   const [months, setMonths] = useState(12)
   const contracts = useQuery({ queryKey: ['contracts'], queryFn: api.contracts })
   const expiring = useQuery({ queryKey: ['expiring', months], queryFn: () => api.expiring(months) })
@@ -79,7 +177,7 @@ export default function Contracts() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Contracts" subtitle="Supply contracts: review flags from the rules, upcoming expiries and volume-discount savings." />
+      <PageHeader title="Contracts" subtitle="Click a row for full contract details. Supply contracts: review flags from the rules, upcoming expiries and volume-discount savings." />
       <Tabs defaultValue="review">
         <TabsList>
           <TabsTrigger value="review">Review</TabsTrigger>
@@ -88,7 +186,7 @@ export default function Contracts() {
         </TabsList>
         <TabsContent value="review" className="space-y-3">
           <Loading query={contracts} />
-          <DataTable columns={reviewColumns} data={contracts.data ?? []} />
+          <DataTable columns={reviewColumns} data={contracts.data ?? []} onRowClick={(r) => setSelected(r.contract)} />
         </TabsContent>
         <TabsContent value="expiring" className="space-y-3">
           <div className="flex flex-wrap items-end gap-4">
@@ -103,14 +201,15 @@ export default function Contracts() {
             )}
           </div>
           <Loading query={expiring} />
-          <DataTable columns={expiringColumns} data={expiring.data?.contracts ?? []} />
+          <DataTable columns={expiringColumns} data={expiring.data?.contracts ?? []} onRowClick={(r) => setSelected(r.iri)} />
         </TabsContent>
         <TabsContent value="savings" className="space-y-3">
           {savings.data && <Kpi title="Saving if every reached tier is applied" value={eurCompact.format(savings.data.total_annual_saving)} hint="(current price minus tier price) x projected volume; assumes the tier price applies to all units" />}
           <Loading query={savings} />
-          <DataTable columns={savingColumns} data={savings.data?.rows ?? []} />
+          <DataTable columns={savingColumns} data={savings.data?.rows ?? []} onRowClick={(r) => setSelected(r.iri)} />
         </TabsContent>
       </Tabs>
+      {selected && <ContractDialog iri={selected} onClose={() => setSelected(null)} />}
     </div>
   )
 }

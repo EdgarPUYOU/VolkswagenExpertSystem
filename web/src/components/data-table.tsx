@@ -9,7 +9,7 @@ import {
 import { useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
-export function DataTable<T>({ columns, data }: { columns: ColumnDef<T>[]; data: T[] }) {
+export function DataTable<T>({ columns, data, onRowClick }: { columns: ColumnDef<T>[]; data: T[]; onRowClick?: (row: T) => void }) {
   const [sorting, setSorting] = useState<SortingState>([])
   const table = useReactTable({
     data,
@@ -40,7 +40,11 @@ export function DataTable<T>({ columns, data }: { columns: ColumnDef<T>[]; data:
       </TableHeader>
       <TableBody>
         {table.getRowModel().rows.map((row) => (
-          <TableRow key={row.id}>
+          <TableRow
+            key={row.id}
+            className={onRowClick ? 'cursor-pointer' : undefined}
+            onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+          >
             {row.getVisibleCells().map((cell) => (
               <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
             ))}

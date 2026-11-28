@@ -96,6 +96,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/market/series", get(market_series))
         .route("/api/exposure/currency", get(currency_exposure))
         .route("/api/exposure/commodity", get(commodity_exposure))
+        .route("/api/contracts/detail", get(contract_detail))
         .route("/api/contracts/savings", get(savings))
         .route("/api/contracts/expiring", get(expiring))
         .route("/api/suppliers/risk", get(supplier_risk))
@@ -240,6 +241,26 @@ struct ExpiringParams {
     months: Option<u32>,
     /// YYYY-MM-DD, defaults to today
     today: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ContractDetailParams {
+    iri: String,
+}
+
+async fn contract_detail(State(s): State<AppState>, Query(p): Query<ContractDetailParams>) -> ApiResult {
+    let snap = snapshot(&s).map_err(fail)?;
+    let detail = questions::contract_detail(&snap, &p.iri, &today()).map_err(fail)?;
+    // review reasons come from the rule-inferred graph, same as the listing
+    let reasons = portfolio::contracts(&s.kg)
+        .map_err(internal)?
+        .into_iter()
+        .find(|r| r["contract"] == p.iri)
+        .and_then(|r| r.get("reasons").cloned())
+        .unwrap_or_default();
+    let mut v = json!(detail);
+    v["review_reasons"] = json!(reasons.split(',').filter(|r| !r.is_empty()).collect::<Vec<_>>());
+    Ok(Json(v))
 }
 
 async fn expiring(State(s): State<AppState>, Query(p): Query<ExpiringParams>) -> ApiResult {
