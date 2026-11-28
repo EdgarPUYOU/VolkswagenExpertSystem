@@ -7,6 +7,8 @@ on:
   pull_request:
   push:
     branches: [main]
+    # docs-only merges must not redeploy
+    paths-ignore: ['docs/**']
 
 permissions:
   contents: read
