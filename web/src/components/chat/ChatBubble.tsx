@@ -1,6 +1,7 @@
-import { IconMessageChatbot, IconX } from '@tabler/icons-react'
+import { IconArrowsMaximize, IconArrowsMinimize, IconMessageChatbot, IconX } from '@tabler/icons-react'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { api, streamChat, type ChatBlock, type ChatReply, type ChatStreamEvent } from '@/lib/api'
 import { BlockView } from './BlockView'
@@ -38,6 +39,13 @@ const GREETING: Message = {
 
 export function ChatBubble() {
   const [open, setOpen] = useState(false)
+  const [expanded, setExpanded] = useState(() => {
+    try {
+      return localStorage.getItem('vw-chat-expanded') === '1'
+    } catch {
+      return false
+    }
+  })
   const [messages, setMessages] = useState<Message[]>(load)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -133,6 +141,16 @@ export function ChatBubble() {
     }
   }
 
+  const toggleExpanded = () =>
+    setExpanded((x) => {
+      try {
+        localStorage.setItem('vw-chat-expanded', x ? '0' : '1')
+      } catch {
+        /* preference just won't persist */
+      }
+      return !x
+    })
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     void send(input)
@@ -146,9 +164,14 @@ export function ChatBubble() {
         <div
           role="dialog"
           aria-label="Ask the data"
-          className="bg-card text-card-foreground fixed inset-0 z-50 flex flex-col border shadow-xl sm:inset-auto sm:right-4 sm:bottom-20 sm:h-[min(40rem,calc(100dvh-7rem))] sm:w-[min(30rem,calc(100vw-2rem))] sm:rounded-xl"
+          className={cn(
+            'bg-muted text-foreground fixed inset-0 z-50 flex flex-col border shadow-xl transition-[width,height] duration-200 sm:inset-auto sm:right-4 sm:bottom-20 sm:rounded-xl',
+            expanded
+              ? 'sm:h-[calc(100dvh-7rem)] sm:w-[min(56rem,calc(100vw-2rem))]'
+              : 'sm:h-[min(40rem,calc(100dvh-7rem))] sm:w-[min(30rem,calc(100vw-2rem))]',
+          )}
         >
-          <div className="flex items-center justify-between border-b px-3 py-2">
+          <div className="bg-card flex items-center justify-between rounded-t-xl border-b px-3 py-2">
             <div>
               <div className="text-sm font-semibold">Ask the data</div>
               <div className="text-muted-foreground text-xs">
@@ -157,6 +180,16 @@ export function ChatBubble() {
             </div>
             <div className="flex gap-1">
               <Button variant="ghost" size="sm" disabled={messages.length === 0} onClick={() => setMessages([])}>Clear</Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="max-sm:hidden"
+                aria-label={expanded ? 'Shrink chat' : 'Expand chat'}
+                aria-pressed={expanded}
+                onClick={toggleExpanded}
+              >
+                {expanded ? <IconArrowsMinimize size={16} aria-hidden /> : <IconArrowsMaximize size={16} aria-hidden />}
+              </Button>
               <Button variant="ghost" size="sm" aria-label="Close chat" onClick={() => setOpen(false)}>Close</Button>
             </div>
           </div>
@@ -167,7 +200,7 @@ export function ChatBubble() {
                   className={
                     m.role === 'user'
                       ? 'bg-primary text-primary-foreground max-w-[85%] rounded-xl px-3 py-2 text-sm'
-                      : 'bg-muted max-w-[95%] space-y-2 rounded-xl px-3 py-2 text-sm'
+                      : 'bg-card max-w-[95%] space-y-2 rounded-xl border px-3 py-2 text-sm'
                   }
                 >
                   {m.role === 'user' || m.error ? (
@@ -189,7 +222,7 @@ export function ChatBubble() {
             ))}
             {busy && (stream && (stream.text || stream.blocks.length > 0 || stream.tool) ? (
               <div className="flex justify-start">
-                <div className="bg-muted max-w-[95%] space-y-2 rounded-xl px-3 py-2 text-sm">
+                <div className="bg-card max-w-[95%] space-y-2 rounded-xl border px-3 py-2 text-sm">
                   {stream.text && (
                     <>
                       <Markdown>{stream.text}</Markdown>
@@ -214,7 +247,7 @@ export function ChatBubble() {
             )}
             <div ref={endRef} />
           </div>
-          <form onSubmit={onSubmit} className="flex gap-2 border-t p-2">
+          <form onSubmit={onSubmit} className="bg-card flex gap-2 rounded-b-xl border-t p-2">
             <input
               className="border-input bg-background focus-visible:ring-ring/50 h-9 flex-1 rounded-lg border px-3 text-sm outline-none focus-visible:ring-3"
               placeholder="e.g. What if rubber goes up 15%?"
